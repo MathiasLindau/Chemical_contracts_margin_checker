@@ -1,0 +1,51 @@
+contract_id,customer_name,product_name,base_price,currency,energy_adder_percentage,raw_material_adder_percentage,min_monthly_volume_tons,max_monthly_volume_tons,max_transport_duration_days,payment_terms_days,min_shelf_life_days,demurrage_days_included,breach_penalty_amount,force_majeure_clause
+CON-2026-001,Global Plastics Co.,Polypropylene,1200.0,USD,10.0,5.0,50.0,100.0,15,30,90,5,10000.0,Force Majeure applies to natural disasters and supplier failures.
+CON-2026-002,Techchem Industries,Sodium Hydroxide,900.0,USD,0.0,10.0,20.0,35.0,10,60,50,0,5000.0,Includes unforeseen market changes.
+CON-2026-003,Advanced Coatings Ltd.,Epoxy Resin,1500.0,EUR,5.0,8.0,25.0,75.0,12,30,120,10,15000.0,Natural disasters only.
+CON-2026-004,Greener Solutions,Bio-based Surfactants,1800.0,EUR,15.0,12.0,15.0,40.0,8,45,30,2,6000.0,Force Majeure due to riots or strikes included.
+CON-2026-005,Industrial Foam Systems,Polyurethane,1300.0,USD,7.0,9.0,70.0,150.0,14,30,60,5,8000.0,No penalties for natural disasters.
+CON-2026-006,Concrete Innovations,Chemical Admixtures,950.0,USD,5.0,0.0,40.0,80.0,14,60,75,12,7000.0,Only extreme weather conditions.
+CON-2026-007,Elevated Technologies,Hydrochloric Acid,400.0,USD,12.0,3.0,100.0,200.0,4,30,30,3,4000.0,Includes machinery failures only.
+CON-2026-008,ElectroChem Materials,Lithium Carbonate,3000.0,USD,20.0,15.0,10.0,25.0,20,30,90,0,12000.0,Includes market volatility.
+CON-2026-009,Solvent Specialties,Acetone,500.0,USD,5.0,4.0,60.0,120.0,10,45,45,2,3000.0,Conditions apply.
+CON-2026-010,Polymer Compounds Inc.,PVC,1100.0,CAD,2.0,7.0,80.0,200.0,25,60,100,5,9000.0,Includes extended lead times due to logistics.
+CON-2026-011,Welding Supplies Global,Argon Gas,700.0,USD,3.0,3.0,20.0,50.0,10,30,60,0,5000.0,Natural events only.
+CON-2026-012,Ceramic Glazes Ltd.,Silica Sand,200.0,USD,0.0,0.0,200.0,400.0,30,60,120,30,200.0,Supply disruptions only.
+CON-2026-013,Pharmaceutical Supplies Co.,Sodium Bicarbonate,400.0,USD,5.0,4.0,40.0,100.0,15,30,90,10,3000.0,Health emergencies included.
+CON-2026-014,Foodgrade Chemicals Ltd.,Citric Acid,650.0,EUR,8.0,10.0,10.0,50.0,5,45,40,3,2000.0,Weather-related issues only.
+CON-2026-015,Glass Innovations,Glass Frit,800.0,USD,0.0,3.0,100.0,300.0,20,60,150,15,1500.0,Only supplier issues.
+CON-2026-016,Building Materials Corp.,Calcium Carbonate,300.0,USD,1.0,2.0,50.0,100.0,7,30,80,2,4000.0,Force Majeure applies.
+CON-2026-017,Adhesive Technologies,Polyethylene Glycol,950.0,USD,6.0,4.0,20.0,80.0,10,30,60,5,5000.0,Includes natural disasters.
+CON-2026-018,Battery Solutions,Nickel Sulfate,2500.0,USD,18.0,15.0,5.0,20.0,25,30,50,1,15000.0,Market fluctuations only.
+CON-2026-019,Paints & Coatings Ltd.,Talc,400.0,EUR,0.0,2.5,100.0,250.0,15,45,100,10,2500.0,Logistical delays only.
+CON-2026-020,Chemicals R Us,Ammonium Nitrate,350.0,USD,5.0,3.0,80.0,150.0,5,30,40,0,2000.0,Disruptions due to supply chain issues.
+CON-2026-021,Sugar & Sweeteners Corp.,Hydrogen Peroxide,400.0,AUD,6.0,5.0,20.0,60.0,10,30,30,5,3000.0,Force Majeure applies.
+CON-2026-022,Textile Chemicals LLC,Dyes and Pigments,800.0,USD,3.0,2.0,40.0,100.0,15,60,75,10,4000.0,Includes factory shutdowns.
+CON-2026-023,Metals & Mining Inc.,Copper Sulfate,800.0,USD,0.0,5.0,50.0,200.0,20,45,90,30,4500.0,Natural events only.
+CON-2026-024,Rubber Solutions Inc.,SBR Rubber,1200.0,USD,2.0,1.5,100.0,250.0,14,30,50,14,6000.0,All natural disasters included.
+CON-2026-025,Cleaning Solutions Ltd.,Surfactants,600.0,USD,0.0,4.0,50.0,120.0,10,30,60,5,2000.0,Compliance with regulations only.
+CON-2026-026,Agricultural Chemicals Co.,Herbicides,700.0,USD,4.0,1.0,60.0,140.0,14,30,90,10,8000.0,Severe weather only.
+CON-2026-027,Solchemical Corp.,Sulfur Dioxide,500.0,USD,10.0,3.0,70.0,130.0,15,30,40,3,3000.0,Market disruptions included.
+CON-2026-028,Industrial Gases Ltd.,Oxygen Gas,600.0,USD,4.0,1.0,50.0,100.0,5,30,70,0,2000.0,Only natural disasters.
+CON-2026-029,Wood Treatment Chemicals,Phenol,800.0,USD,5.0,2.0,40.0,90.0,15,30,80,10,4000.0,Includes factory shutdowns.
+CON-2026-030,Personal Care Products Co.,Glycerin,500.0,USD,2.5,5.0,20.0,60.0,10,30,60,0,2500.0,Limited disruptions only.
+CON-2026-031,Oleochemical Industries,Fatty Acids,750.0,USD,8.0,3.5,40.0,80.0,10,30,100,5,2500.0,Supply chain disruptions only.
+CON-2026-032,FPS Chemicals,Ammonia,600.0,EUR,5.0,5.0,90.0,150.0,20,30,30,4,3500.0,No penalties for operational disruptions.
+CON-2026-033,Green Solutions,Compostable Chemicals,900.0,USD,10.0,2.0,10.0,30.0,10,30,90,3,2000.0,Economic impacts only.
+CON-2026-034,Industrial Adhesives Ltd.,Cationic Resins,1100.0,USD,5.0,0.0,20.0,40.0,5,30,80,5,4000.0,Supplier bankruptcy only.
+CON-2026-035,Waste Treatment Co.,Sodium Hypochlorite,750.0,USD,5.0,8.0,20.0,50.0,7,30,50,2,3000.0,Included force majeure operational issues.
+CON-2026-036,Coal Tar Chemicals,Coal Tar Pitch,800.0,USD,3.0,5.0,50.0,100.0,15,30,40,3,5000.0,Natural disasters only.
+CON-2026-037,Novel Materials Inc.,Expanded Polystyrene,900.0,USD,10.0,2.0,30.0,80.0,7,30,80,5,3000.0,Economic factors included.
+CON-2026-038,Industrial Minerals Co.,Calcium Sulfate,400.0,USD,0.0,2.0,100.0,250.0,10,30,50,10,2500.0,Only supplier issues allowed.
+CON-2026-039,Thermal Chemicals,Sodium Acetate,500.0,USD,2.0,7.0,20.0,60.0,10,30,90,5,2500.0,Force Majeure applies.
+CON-2026-040,Personal Care Supplies,Sodium Lauryl Sulfate,450.0,USD,6.0,4.0,20.0,80.0,5,30,60,0,3000.0,Weather conditions only.
+CON-2026-041,Pulp Chemicals Ltd.,Sodium Sulfite,350.0,USD,4.0,6.0,40.0,100.0,15,30,50,4,3000.0,Natural disasters only.
+CON-2026-042,Polishing Solutions,Cerium Oxide,1500.0,USD,5.0,8.0,20.0,80.0,15,30,60,10,7000.0,Only supplier mistakes covered.
+CON-2026-043,Specialty Coatings,Anti-Corrosive Paints,850.0,USD,10.0,2.5,20.0,50.0,10,30,50,5,4000.0,Force Majeure applies.
+CON-2026-044,Water Treatment Inc.,Chlorine Dioxide,500.0,USD,0.0,5.0,100.0,200.0,15,30,30,3,2500.0,Set by market conditions.
+CON-2026-045,Environmental Solutions,Biodegradable Plastics,900.0,USD,5.0,10.0,15.0,50.0,10,30,90,5,3000.0,Product liability insurance required.
+CON-2026-046,Metal Finishing Chemicals,Nickel Chloride,600.0,USD,0.0,3.0,20.0,60.0,10,30,70,0,2000.0,Market fluctuations included.
+CON-2026-047,Industrial Coatings LLC,Pigment Dispersions,700.0,USD,2.0,4.0,60.0,120.0,10,30,40,3,3500.0,Suppliers’ choice of terms.
+CON-2026-048,Energy Solutions Co.,Ethylene Glycol,800.0,USD,5.0,2.5,150.0,300.0,15,30,80,5,4500.0,Natural disasters only.
+CON-2026-049,Adhesives & Sealants Inc.,Polyurethane Adhesives,850.0,USD,5.0,3.0,40.0,80.0,10,30,60,5,4000.0,Includes extended lead times.
+CON-2026-050,Natural Chem Industries,Betaines,1100.0,USD,6.0,4.0,20.0,60.0,15,30,50,3,3000.0,Limited only to regional supply shortages.
