@@ -1,191 +1,780 @@
 Chemical Contracts Margin Checker
 
-A RAG-based contract analysis application for procurement and supply-chain use cases. The system helps users analyze chemical supply contracts, including pricing, volume commitments, surcharges, penalties, delivery terms, and contractual clauses.
+A RAG-based contract analysis application for procurement and supply-chain use cases.
+
+The system analyzes chemical supply contracts across structured contract data and unstructured contract text. It combines deterministic data analysis with document retrieval and LLM-based answer generation.
+
+The longer-term concept is:
+
+Contract + Market API = Dynamic Margin
+
+The goal is to connect contractual conditions with daily market inputs such as raw-material prices, oil prices, energy prices, container prices, and logistics costs to support better supply-chain opportunity and risk assessment.
 
 Problem
 
-Procurement teams often need to combine information from structured contract data with details buried in contract documents. Simple database queries are sufficient for some questions, while contractual clauses require semantic document retrieval. More complex questions require both.
+Procurement teams often need to combine information from structured contract data with details buried in contract documents.
 
-This project therefore separates queries into three routes:
+Some questions can be answered deterministically from tabular data. Other questions require semantic retrieval from contractual clauses. More complex questions require both.
+
+The system therefore separates queries into three routes:
 
 Structured — questions answerable from tabular contract data.
+
 Unstructured — questions requiring information from contract text.
+
 Hybrid — questions requiring both structured data and contract text.
 
-Examples include:
+Example questions
 
-Question	Route	Operation
-Which contract has the highest breach penalty?	Structured	Ranking
-Which contracts have an energy surcharge above 5%?	Structured	Filtering
-What is the total potential penalty exposure?	Structured	Aggregation / Calculation
-What happens if the supplier fails to deliver the agreed quantity?	Unstructured	Semantic Retrieval
-What are the consequences of failing to meet the minimum volume commitment?	Unstructured	Semantic Retrieval
-How do two contracts compare regarding price and breach penalties?	Hybrid	Comparison
-Which contract offers the best price while having favorable payment terms?	Hybrid	Multi-hop / Comparison
+Question
+
+Route
+
+Operation
+
+Which contract has the lowest price?
+
+Structured
+
+Ranking
+
+Which contracts have an energy surcharge above 5%?
+
+Structured
+
+Filtering
+
+What is the total potential penalty exposure?
+
+Structured
+
+Aggregation / Calculation
+
+What happens if the supplier fails to deliver the agreed quantity?
+
+Unstructured
+
+Semantic Retrieval
+
+What are the consequences of failing to meet the minimum volume commitment?
+
+Unstructured
+
+Semantic Retrieval
+
+How do two contracts compare regarding price and breach penalties?
+
+Hybrid
+
+Comparison
+
+Which contract has the lowest price and what are its payment terms?
+
+Hybrid
+
+Multi-source analysis
+
 Architecture
 
-The pipeline follows:
+                         User Question
+                               |
+                               v
+                         +-----------+
+                         |   Router  |
+                         +-----------+
+                               |
+              +----------------+----------------+
+              |                |                |
+              v                v                v
+        Structured       Unstructured        Hybrid
+              |                |                |
+              v                v                v
+        CSV / Pandas      Contract Text    CSV / Pandas
+                               |                +
+                               v          Contract Text
+                         +-----------+           |
+                         | BM25 +    |           |
+                         | Vector    |           |
+                         | + RRF     |           |
+                         +-----------+           |
+              |                |                |
+              +----------------+----------------+
+                               |
+                               v
+                         LLM Answer
+                               |
+                               v
+                       Evaluation / Logging
 
-User Question
-      │
-      ▼
-   Router
-      │
- ┌────┼─────────────┐
- ▼    ▼             ▼
-Structured       Unstructured
-   │                  │
-   ▼                  ▼
- CSV / SQL       Contract Retrieval
-   │                  │
-   └────────┬─────────┘
-            ▼
-       Hybrid Path
-            │
-            ▼
-      LLM Answer
-            │
-            ▼
-        Response
+Route architecture
 
-Structured data is stored in PostgreSQL/CSV-based contract records, while contract documents are chunked and stored with embeddings for retrieval.
+Route
 
-The retrieval layer evaluates three approaches:
+Data source
 
-Vector search using all-MiniLM-L6-v2
-BM25 using minsearch
-Hybrid retrieval combining vector and BM25 rankings using Reciprocal Rank Fusion
+Retrieval / analysis
+
+Structured
+
+CSV / Pandas
+
+Deterministic filtering, ranking and calculations
+
+Unstructured
+
+Contract Markdown
+
+BM25 + Vector Search + Reciprocal Rank Fusion
+
+Hybrid
+
+CSV / Pandas + Contract Markdown
+
+Structured analysis + BM25 + Vector Search + RRF
+
+Important terminology:
+
+Hybrid Search = BM25 + Vector Search + RRF
+
+Hybrid Route = Structured data + contract text
+
+Contract Data
+
+The project currently contains:
+
+50 synthetic but realistically designed contracts
+
+300 contract chunks
+
+300 embeddings
+
+0 empty chunks
+
+Contracts contain fields such as:
+
+product
+
+base price
+
+volume commitments
+
+energy adders
+
+raw-material adders
+
+payment terms
+
+transport duration
+
+shelf life
+
+demurrage / free-container days
+
+breach penalties
+
+contractual clauses
+
+The contracts are synthetic, but designed to represent realistic procurement and chemical supply-chain scenarios.
+
+Retrieval
+
+The unstructured retrieval layer evaluates three approaches.
+
+Vector Search
+
+Semantic retrieval using:
+
+all-MiniLM-L6-v2
+
+BM25
+
+Lexical retrieval using:
+
+minsearch
+
+Hybrid Retrieval
+
+BM25 and vector rankings are combined using Reciprocal Rank Fusion (RRF).
+
+This allows the system to benefit from both:
+
+semantic similarity
+
+exact contractual terminology and keyword matches
+
 Evaluation
 
-Evaluation is performed at separate stages rather than treating the RAG system as a single black box:
+Evaluation is performed at separate stages rather than treating the RAG system as a single black box.
+
+Ground Truth and Evidence
+
+Ground truth is defined by the underlying contract data and supporting evidence.
+
+For structured questions, expected values are controlled using the contract dataset.
+
+For unstructured questions, the relevant contractual evidence defines what the answer should be based on.
+
+For hybrid questions, both structured values and contractual evidence are used.
+
+The LLM-as-Judge does not create the ground truth. It evaluates whether the generated answer is consistent with the predefined ground truth and evidence.
 
 Route Evaluation
 
-Measures whether the query is correctly classified as:
+Route evaluation measures whether the query is correctly classified as:
 
 structured
+
 unstructured
+
 hybrid
 
 Current evaluation:
 
 Route Accuracy: 94.0%
+
 47 / 50 correct
+
 Retrieval Evaluation
 
-Retrieval is evaluated independently using Hit@3, Full Hit@3 and MRR@3.
+Retrieval is evaluated independently using:
 
-Current results:
+Hit@3
 
-VECTOR:
-  Hit@3:      68.0%
-  Full Hit@3: 60.0%
-  MRR@3:      0.6300
+Full Hit@3
 
-BM25:
-  Hit@3:      72.0%
-  Full Hit@3: 66.0%
-  MRR@3:      0.7200
+MRR@3
 
-HYBRID:
-  Hit@3:      74.0%
-  Full Hit@3: 66.0%
-  MRR@3:      0.6733
+Current evaluation results:
+
+Method
+
+Hit@3
+
+Full Hit@3
+
+MRR@3
+
+Vector
+
+64.0%
+
+58.0%
+
+0.6167
+
+BM25
+
+72.0%
+
+66.0%
+
+0.7067
+
+Hybrid
+
+72.0%
+
+66.0%
+
+0.6600
+
+On the current evaluation dataset, BM25 performs strongly because many contract questions depend on exact contractual terminology. Hybrid retrieval combines both retrieval signals.
+
 Answer Evaluation
 
-Answer quality is evaluated separately for each route.
+Answer quality is evaluated separately by route.
 
-For structured questions, deterministic CSV ground truth is used:
+Structured
+
+Structured questions use deterministic contract data and are classified as:
 
 CORRECT
+
 PARTLY_CORRECT
+
 INCORRECT
 
-For unstructured and hybrid questions, generated answers are evaluated against the relevant evidence:
+Current result:
+
+20 / 20 correct — 100%
+
+Unstructured
+
+Unstructured answers are evaluated against contractual evidence:
 
 RELEVANT
+
 PARTLY_RELEVANT
+
 NOT_RELEVANT
 
-This separation makes it possible to distinguish routing, retrieval, and generation errors.
+Current result:
+
+14 / 14 relevant — 100%
+
+Hybrid
+
+Hybrid answers are evaluated against both structured values and contractual evidence.
+
+Current result:
+
+14 / 16 relevant — 87.5%
+
+2 / 16 partly relevant — 12.5%
+
+0 / 16 not relevant
+
+The evaluation separates routing, retrieval and generation errors so that each stage can be analyzed independently.
+
+LLM-as-Judge
+
+The project uses an LLM-based judge as an additional evaluation layer.
+
+The judge evaluates the generated answer against the predefined evidence and expected answer criteria.
+
+This is intentionally separated from ground-truth creation:
+
+Contract Data + Evidence
+          |
+          v
+     Ground Truth
+          |
+          +------------------+
+          |                  |
+          v                  v
+     Generated Answer    LLM-as-Judge
+          |                  |
+          +--------->--------+
+                    |
+                    v
+              Quality Result
+
+The judge therefore provides an evaluation signal; it does not define what is correct.
 
 Query Generation
 
-An evaluation dataset is generated with realistic variations in user phrasing, including informal questions, vague requests, comparisons, multi-step questions, cost-focused questions, volume questions, adder questions, and penalty-related questions.
+The evaluation dataset contains realistic variations in user phrasing, including:
 
-Structured questions are tied to a specific CSV field and use deterministic ground truth rather than asking the LLM to calculate the expected answer.
+informal questions
+
+vague requests
+
+comparisons
+
+multi-step questions
+
+cost-focused questions
+
+volume questions
+
+adder questions
+
+penalty-related questions
+
+Structured questions are tied to specific CSV fields and use deterministic ground truth rather than asking the LLM to calculate the expected answer.
+
+The project also includes evaluation questions with supporting evidence.
+
+One dataset consistency issue should be cleaned before treating the benchmark as final: one Titanium Carbonate hybrid case contains an evidence calculation of 700 + 14 + 35 = 749, while the recorded answer states 735.
+
+Streamlit Application
+
+The current frontend is built with Streamlit.
+
+The application provides:
+
+natural-language contract questions
+
+automatic route classification
+
+answer generation
+
+source display
+
+retrieval scores
+
+response time
+
+token usage
+
+estimated API cost
+
+answer-quality feedback
+
+query history
+
+Example application flow:
+
+Question
+   |
+   v
+Router
+   |
+   +--> Structured
+   |
+   +--> Unstructured
+   |
+   +--> Hybrid
+            |
+            v
+        Retrieval /
+        Data Analysis
+            |
+            v
+        LLM Answer
+            |
+            v
+       Logging + Feedback
+
+Monitoring
+
+Query-level information is stored in PostgreSQL.
+
+The monitoring layer records information such as:
+
+question
+
+answer
+
+route
+
+response time
+
+prompt tokens
+
+completion tokens
+
+total tokens
+
+estimated cost
+
+LLM-as-Judge relevance
+
+relevance explanation
+
+user feedback
+
+Grafana can be connected to PostgreSQL for monitoring dashboards such as:
+
+total queries
+
+queries by route
+
+answer quality
+
+queries per day
+
+response time over time
+
+Future Business Concept
+
+The current system focuses on contract understanding.
+
+The intended next step is to connect contracts with external market data.
+
+For example, a contract may contain:
+
+Product: Polyethylene
+Base Price: 1200 USD / metric ton
+
+Energy Adder: 5%
+Raw Material Adder: 10%
+
+Minimum Monthly Volume: 50 tons
+Maximum Monthly Volume: 100 tons
+
+A future API could provide daily values for:
+
+raw-material prices
+
+oil prices
+
+energy prices
+
+container prices
+
+logistics costs
+
+other relevant market indicators
+
+The system could then combine:
+
+Contract Terms
+      +
+Daily Market Inputs
+      =
+Updated Margin
+
+This enables a future workflow in which procurement and supply-chain teams can assess:
+
+margin development
+
+contract profitability
+
+cost exposure
+
+supply-chain risks
+
+commercial opportunities
+
+contracts requiring attention
+
+The long-term objective is to move from static contract analysis toward dynamic, data-driven margin and risk monitoring on a daily or weekly basis.
 
 Technology Stack
+
 Python
+
 OpenAI API
+
+Streamlit
+
 PostgreSQL
+
 pgvector
+
 Sentence Transformers
+
 BM25 / minsearch
+
 Pandas
+
 JSON / CSV
+
 Markdown contract documents
+
+Docker / Docker Compose
+
+Grafana
+
 Project Structure
+
 chemical-contracts-margin-checker/
+│
+├── app.py
+├── Dockerfile
+├── docker-compose.yml
+├── run.sh
 │
 ├── data/
 │   ├── chemical_contracts.csv
 │   └── contracts/
+│       ├── CON-2023-0001.md
+│       ├── ...
+│       └── CON-2023-0050.md
 │
-├── evaluation_questions.json
-├── evaluation_dataset.json
+├── evaluation/
+│   ├── evaluate_answer.py
+│   ├── evaluate_retrieval.py
+│   ├── evaluate_route.py
+│   ├── evaluation_dataset.json
+│   └── evaluation_questions.json
 │
-├── generate_questions.py
-├── answer_test_questions.py
-├── route_evaluation.py
-├── retrieval_evaluation.py
-├── evaluate_answer.py
+├── generate/
+│   ├── generate_contracts.py
+│   ├── generate_test_answer.py
+│   └── generate_test_questions.py
 │
+├── src/
+│   └── margin_checker/
+│       ├── __init__.py
+│       ├── db.py
+│       ├── ingest.py
+│       ├── rag.py
+│       ├── retrieval.py
+│       └── router.py
+│
+├── pyproject.toml
+├── uv.lock
 └── README.md
+
 Running the Project
 
-Install the dependencies and configure the required environment variables, including the OpenAI API key and PostgreSQL connection.
+1. Configure environment variables
 
-The evaluation scripts can then be run independently:
+Create a .env file containing the required configuration.
 
-python generate_questions.py
-python answer_test_questions.py
-python route_evaluation.py
-python retrieval_evaluation.py
-python evaluate_answer.py
+For example:
+
+POSTGRES_DB=contracts_db
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=your_password
+POSTGRES_HOST=app_postgres
+DB_CONN=postgresql://postgres:your_password@app_postgres:5432/contracts_db
+OPENAI_API_KEY=your_api_key
+
+Do not commit .env to GitHub.
+
+2. Start the application
+
+docker compose up --build
+
+The Streamlit application is exposed on:
+
+http://localhost:8502
+
+Grafana is exposed on:
+
+http://localhost:3000
+
+3. Ingest contract data
+
+The ingestion module loads contract chunks and creates embeddings in PostgreSQL / pgvector.
+
+python -m src.margin_checker.ingest
+
+4. Run evaluations
+
+Route evaluation:
+
+python evaluation/evaluate_route.py
+
+Retrieval evaluation:
+
+python evaluation/evaluate_retrieval.py
+
+Answer evaluation:
+
+python evaluation/evaluate_answer.py
+
+Design Decisions
+
+Separate routing from retrieval
+
+The router first determines which information sources are required. This prevents every query from unnecessarily executing all retrieval paths.
+
+Deterministic structured analysis
+
+Structured questions are answered from contract data rather than relying on semantic retrieval for numerical filtering, ranking and aggregation.
+
+Evidence-based unstructured analysis
+
+Contractual questions use retrieved document chunks as evidence for the generated answer.
+
+Hybrid route
+
+Hybrid questions combine deterministic structured information with retrieved contractual evidence.
+
+Separate evaluation stages
+
+Routing, retrieval and answer generation are evaluated independently. This makes it easier to identify where errors originate.
+
 Limitations
 
-The retrieval results show that retrieval is still the main area for improvement. BM25 currently performs better than vector search on this evaluation dataset, while the hybrid approach achieves the highest Hit@3.
+The current evaluation dataset is relatively small, so individual questions can have a noticeable impact on the reported metrics.
 
-The evaluation dataset is also relatively small, so individual questions can have a noticeable impact on the reported metrics. Further improvements should therefore be validated against a larger and more diverse test set.
+Retrieval is still an important area for improvement. BM25 currently performs strongly on the evaluation dataset, while hybrid retrieval combines lexical and semantic retrieval signals.
 
-Future Work
+The contracts are synthetic rather than real-world commercial contracts. They are designed to be realistic for prototyping and evaluation, but they should not be interpreted as legal or commercial advice.
+
+The future market-data integration is a planned extension and is not yet part of the current margin calculation pipeline.
+
+Future Development
+
+Potential next steps include:
+
+Connect market-data APIs.
+
+Calculate dynamic contract margins from daily market inputs.
+
 Improve structured query handling and calculations.
+
 Experiment with retrieval parameters and chunking strategies.
+
 Improve hybrid ranking.
+
 Expand the evaluation dataset.
+
 Add more difficult multi-hop questions.
-Build the final user interface for interactive contract analysis.
 
+Improve monitoring and alerting.
 
+Add supply-chain risk and opportunity scoring.
 
-Retrieval Architecture
+Develop a production-ready user interface.
 
-The query router determines which data source and retrieval method are needed:
+Demo Flow
 
-Route	Retrieval	Example
-Structured	CSV + Python/Pandas	Which contract has the lowest price?
-Unstructured	BM25 + Vector Search + RRF → contract text	What happens if the supplier fails to deliver?
-Hybrid	CSV/Pandas + BM25 + Vector Search + RRF	Which contract has the lowest price and what are its payment terms?
-In short
+A typical demonstration can follow this sequence:
+
+1. Structured question
+
+Ask for a numerical or ranking result from contract data.
+
+Example:
+
+Which contract has the lowest price?
+
+The system uses the structured route.
+
+2. Unstructured question
+
+Ask about a contractual clause.
+
+Example:
+
+What happens if the supplier fails to deliver the agreed quantity?
+
+The system retrieves relevant contract text using BM25 + vector search + RRF.
+
+3. Hybrid question
+
+Combine numerical contract information with contractual terms.
+
+Example:
+
+Which contract has the lowest price and what are its payment terms?
+
+The system combines structured analysis with contract-text retrieval.
+
+4. Evaluation
+
+Inspect:
+
+route
+
+sources
+
+retrieval scores
+
+response time
+
+token usage
+
+cost
+
+answer relevance
+
+user feedback
+
+Summary
+
+This project demonstrates a modular RAG architecture for chemical contract analysis.
+
+The core architecture separates:
+
 Structured
-→ CSV / Pandas
+    -> CSV / Pandas
 
 Unstructured
-→ Contract Text / BM25 + Vector / RRF
+    -> Contract Text
+    -> BM25 + Vector Search + RRF
 
 Hybrid
-→ CSV / Pandas + Contract Text / BM25 + Vector / RRF
+    -> CSV / Pandas
+    -> Contract Text
+    -> BM25 + Vector Search + RRF
 
-Hybrid Search refers to BM25 + Vector Search.
-Hybrid Route refers to structured data + contract text.
+The current prototype focuses on contract understanding and evidence-based answers.
+
+The intended evolution is:
+
+Contract
+   +
+Market API
+   =
+Dynamic Margin
+   +
+Supply-Chain Risk / Opportunity
+
+This creates a path from static contract analysis toward continuously updated procurement and supply-chain decision support.
