@@ -1,0 +1,468 @@
+[
+  {
+    "question": "Given the minimum monthly volume commitments for both Titanium Carbonate and Ammonium Nitrate, what are the combined monthly volumes needed to avoid breach penalties, and how would the energy and raw material adders impact the total costs for each product?",
+    "route": "hybrid",
+    "valid_contract_ids": [
+      "CON-2023-0045",
+      "CON-2023-0005"
+    ]
+  },
+  {
+    "question": "What is the total potential financial penalty for failing to meet the minimum monthly volume requirements for both Sodium Bicarbonate and Formic Acid, considering their respective breach penalty amounts?",
+    "route": "hybrid",
+    "valid_contract_ids": [
+      "CON-2023-0008",
+      "CON-2023-0020"
+    ]
+  },
+  {
+    "question": "What are the maximum and minimum volume commitments for the chemical products we need to adhere to in this contract?",
+    "route": "unstructured",
+    "valid_contract_ids": [
+      "CON-2023-0021"
+    ]
+  },
+  {
+    "question": "What are the minimum and maximum volume commitments specified in the agreement?",
+    "route": "unstructured",
+    "valid_contract_ids": [
+      "CON-2023-0031"
+    ]
+  },
+  {
+    "question": "What are the total potential penalties for not meeting the minimum monthly volume commitments for both Sodium Fluoride and PVA Resin, and how do their respective payment terms and energy adder percentages affect the net revenue calculations for both products?",
+    "route": "hybrid",
+    "valid_contract_ids": [
+      "CON-2023-0047",
+      "CON-2023-0019"
+    ]
+  },
+  {
+    "question": "What is the base price of Phenol?",
+    "route": "structured",
+    "valid_contract_ids": [
+      "CON-2023-0033"
+    ],
+    "ground_truth": {
+      "type": "csv",
+      "field": "base_price",
+      "data": 1100.0
+    }
+  },
+  {
+    "question": "What is the base price of MTBE?",
+    "route": "structured",
+    "valid_contract_ids": [
+      "CON-2023-0010"
+    ],
+    "ground_truth": {
+      "type": "csv",
+      "field": "base_price",
+      "data": 950.0
+    }
+  },
+  {
+    "question": "What is the base price of Sodium Citrate?",
+    "route": "structured",
+    "valid_contract_ids": [
+      "CON-2023-0044"
+    ],
+    "ground_truth": {
+      "type": "csv",
+      "field": "base_price",
+      "data": 550.0
+    }
+  },
+  {
+    "question": "What is the total potential financial penalty for short delivery under the contracts for both Glycerin and Polystyrene if the agreed minimum monthly volume is not met, considering the different breach penalty amounts outlined in the respective Master Agreements?",
+    "route": "hybrid",
+    "valid_contract_ids": [
+      "CON-2023-0012",
+      "CON-2023-0048"
+    ]
+  },
+  {
+    "question": "What is the minimum monthly volume of Sodium Carbonate that we need to order?",
+    "route": "structured",
+    "valid_contract_ids": [
+      "CON-2023-0049"
+    ],
+    "ground_truth": {
+      "type": "csv",
+      "field": "min_monthly_volume_tons",
+      "data": 80.0
+    }
+  },
+  {
+    "question": "What is the base price for Hydrochloric Acid?",
+    "route": "structured",
+    "valid_contract_ids": [
+      "CON-2023-0014"
+    ],
+    "ground_truth": {
+      "type": "csv",
+      "field": "base_price",
+      "data": 370.0
+    }
+  },
+  {
+    "question": "What are the consequences outlined in the contract for failing to meet the agreed minimum monthly volume of hydrogen peroxide?",
+    "route": "unstructured",
+    "valid_contract_ids": [
+      "CON-2023-0032"
+    ]
+  },
+  {
+    "question": "What would be the total cost per ton for Iron Oxide considering the maximum monthly volume and the energy and raw material adder percentages, and how does it compare to the total cost per ton for Chloroform at its maximum monthly volume, taking into account their respective payment terms and breach penalty amounts?",
+    "route": "hybrid",
+    "valid_contract_ids": [
+      "CON-2023-0042",
+      "CON-2023-0002"
+    ]
+  },
+  {
+    "question": "What are the minimum and maximum volume commitments outlined in the contract?",
+    "route": "unstructured",
+    "valid_contract_ids": [
+      "CON-2023-0007"
+    ]
+  },
+  {
+    "question": "What are the total potential financial penalties for both Decorative Chemicals Co. and Tape and Adhesive Co. if either company fails to meet their minimum monthly volume commitments specified in their respective contracts?",
+    "route": "hybrid",
+    "valid_contract_ids": [
+      "CON-2023-0045",
+      "CON-2023-0040"
+    ]
+  },
+  {
+    "question": "What are the differences in breach penalty amounts and payment terms between the contracts for Ethanol and Calcium Nitrate?",
+    "route": "hybrid",
+    "valid_contract_ids": [
+      "CON-2023-0003",
+      "CON-2023-0039"
+    ]
+  },
+  {
+    "question": "What are the maximum monthly volume capacities for Iron Oxide and Calcium Nitrate, and how do the penalties for breach of contract compare between the two agreements?",
+    "route": "hybrid",
+    "valid_contract_ids": [
+      "CON-2023-0042",
+      "CON-2023-0039"
+    ]
+  },
+  {
+    "question": "What are the consequences detailed in the contract for failing to meet the minimum monthly volume commitment?",
+    "route": "unstructured",
+    "valid_contract_ids": [
+      "CON-2023-0049"
+    ]
+  },
+  {
+    "question": "What are the minimum and maximum volume commitments stipulated in the agreement for Lead Acetate?",
+    "route": "unstructured",
+    "valid_contract_ids": [
+      "CON-2023-0011"
+    ]
+  },
+  {
+    "question": "What is the base price for Sodium Lauryl Sulfate?",
+    "route": "structured",
+    "valid_contract_ids": [
+      "CON-2023-0035"
+    ],
+    "ground_truth": {
+      "type": "csv",
+      "field": "base_price",
+      "data": 500.0
+    }
+  },
+  {
+    "question": "What is the base price of the Silica Sand?",
+    "route": "structured",
+    "valid_contract_ids": [
+      "CON-2023-0007"
+    ],
+    "ground_truth": {
+      "type": "csv",
+      "field": "base_price",
+      "data": 250.0
+    }
+  },
+  {
+    "question": "What is the breach penalty amount if a term of the contract is violated?",
+    "route": "structured",
+    "valid_contract_ids": [
+      "CON-2023-0025"
+    ],
+    "ground_truth": {
+      "type": "csv",
+      "field": "breach_penalty_amount",
+      "data": 5000.0
+    }
+  },
+  {
+    "question": "How does the base price of Hydrochloric Acid from ChemReserve LLC compare to other suppliers?",
+    "route": "structured",
+    "valid_contract_ids": [
+      "CON-2023-0014"
+    ],
+    "ground_truth": {
+      "type": "csv",
+      "field": "base_price",
+      "data": 370.0
+    }
+  },
+  {
+    "question": "What is the base price of Ammonium Bicarbonate for Polar Chemicals Ltd.?",
+    "route": "structured",
+    "valid_contract_ids": [
+      "CON-2023-0034"
+    ],
+    "ground_truth": {
+      "type": "csv",
+      "field": "base_price",
+      "data": 470.0
+    }
+  },
+  {
+    "question": "What are the logistical constraints related to the delivery and shelf life of the product?",
+    "route": "unstructured",
+    "valid_contract_ids": [
+      "CON-2023-0044"
+    ]
+  },
+  {
+    "question": "What is the base price for Mica Powder?",
+    "route": "structured",
+    "valid_contract_ids": [
+      "CON-2023-0041"
+    ],
+    "ground_truth": {
+      "type": "csv",
+      "field": "base_price",
+      "data": 450.0
+    }
+  },
+  {
+    "question": "What is the base price for Sodium Citrate?",
+    "route": "structured",
+    "valid_contract_ids": [
+      "CON-2023-0044"
+    ],
+    "ground_truth": {
+      "type": "csv",
+      "field": "base_price",
+      "data": 550.0
+    }
+  },
+  {
+    "question": "What are the total potential penalties for breach of contract if Decorative Chemicals Co. fails to meet their minimum monthly volume commitments, and how do those penalties compare with the penalties outlined for Biocompatible Plastics LLC?",
+    "route": "hybrid",
+    "valid_contract_ids": [
+      "CON-2023-0045",
+      "CON-2023-0031"
+    ]
+  },
+  {
+    "question": "What are the surcharges that apply to the base price of sodium carbonate according to the agreement?",
+    "route": "unstructured",
+    "valid_contract_ids": [
+      "CON-2023-0049"
+    ]
+  },
+  {
+    "question": "What penalties are outlined in the contract for failing to meet the agreed minimum monthly volume?",
+    "route": "unstructured",
+    "valid_contract_ids": [
+      "CON-2023-0049"
+    ]
+  },
+  {
+    "question": "How does the base price of Potassium Chloride from Water Purity Solutions compare to similar products in the market?",
+    "route": "structured",
+    "valid_contract_ids": [
+      "CON-2023-0016"
+    ],
+    "ground_truth": {
+      "type": "csv",
+      "field": "base_price",
+      "data": 650.0
+    }
+  },
+  {
+    "question": "What is the base price for MTBE?",
+    "route": "structured",
+    "valid_contract_ids": [
+      "CON-2023-0010"
+    ],
+    "ground_truth": {
+      "type": "csv",
+      "field": "base_price",
+      "data": 950.0
+    }
+  },
+  {
+    "question": "What is the total maximum monthly volume of Polyethylene from Global Plastics Inc. and Polyurethane from Tape and Adhesive Co., and how do their energy and raw material adder percentages affect the final price per ton for both contracts?",
+    "route": "hybrid",
+    "valid_contract_ids": [
+      "CON-2023-0001",
+      "CON-2023-0040"
+    ]
+  },
+  {
+    "question": "What is the maximum monthly volume in tons for the MTBE product?",
+    "route": "structured",
+    "valid_contract_ids": [
+      "CON-2023-0010"
+    ],
+    "ground_truth": {
+      "type": "csv",
+      "field": "max_monthly_volume_tons",
+      "data": 150.0
+    }
+  },
+  {
+    "question": "What’s the base price for the Polyethylene Terephthalate we're considering?",
+    "route": "structured",
+    "valid_contract_ids": [
+      "CON-2023-0030"
+    ],
+    "ground_truth": {
+      "type": "csv",
+      "field": "base_price",
+      "data": 810.0
+    }
+  },
+  {
+    "question": "What are the differences in the maximum transport duration and the breach penalty amounts between the contracts for Tungsten Trioxide and Sodium Fluoride?",
+    "route": "hybrid",
+    "valid_contract_ids": [
+      "CON-2023-0037",
+      "CON-2023-0047"
+    ]
+  },
+  {
+    "question": "What are the consequences outlined in the agreement for failing to meet the minimum monthly volume commitment?",
+    "route": "unstructured",
+    "valid_contract_ids": [
+      "CON-2023-0024"
+    ]
+  },
+  {
+    "question": "What are the minimum and maximum volume commitments specified in the agreement for the Epoxy Hardener?",
+    "route": "unstructured",
+    "valid_contract_ids": [
+      "CON-2023-0029"
+    ]
+  },
+  {
+    "question": "How does the base price of Sodium Citrate compare to other products you offer?",
+    "route": "structured",
+    "valid_contract_ids": [
+      "CON-2023-0044"
+    ],
+    "ground_truth": {
+      "type": "csv",
+      "field": "base_price",
+      "data": 550.0
+    }
+  },
+  {
+    "question": "What is the base price of the polyurethane product for Tape and Adhesive Co.?",
+    "route": "structured",
+    "valid_contract_ids": [
+      "CON-2023-0040"
+    ],
+    "ground_truth": {
+      "type": "csv",
+      "field": "base_price",
+      "data": 850.0
+    }
+  },
+  {
+    "question": "What is the base price of PLA Resin?",
+    "route": "structured",
+    "valid_contract_ids": [
+      "CON-2023-0031"
+    ],
+    "ground_truth": {
+      "type": "csv",
+      "field": "base_price",
+      "data": 980.0
+    }
+  },
+  {
+    "question": "What are the maximum transport durations and breach penalty amounts specified in the agreements for Reactive Dyes and Polypropylene, and how do they compare in terms of potential penalties if the minimum monthly volumes are not met?",
+    "route": "hybrid",
+    "valid_contract_ids": [
+      "CON-2023-0028",
+      "CON-2023-0013"
+    ]
+  },
+  {
+    "question": "What is the minimum monthly volume of Titanium Dioxide that Custom Paint Co. is required to purchase?",
+    "route": "structured",
+    "valid_contract_ids": [
+      "CON-2023-0018"
+    ],
+    "ground_truth": {
+      "type": "csv",
+      "field": "min_monthly_volume_tons",
+      "data": 80.0
+    }
+  },
+  {
+    "question": "What are the differences in the energy and raw material surcharge percentages between the contracts for Polyethylene and MTBE, and how do those differences affect the total price if both contracts are fulfilled at their respective minimum monthly volumes?",
+    "route": "hybrid",
+    "valid_contract_ids": [
+      "CON-2023-0001",
+      "CON-2023-0010"
+    ]
+  },
+  {
+    "question": "What is the minimum shelf life required for the Sodium Acetate upon delivery?",
+    "route": "unstructured",
+    "valid_contract_ids": [
+      "CON-2023-0050"
+    ]
+  },
+  {
+    "question": "What is the total potential financial penalty for short delivery if the minimum monthly volume is not met for both Sodium Carbonate and Potassium Chloride, considering their respective agreements and breach penalty amounts?",
+    "route": "hybrid",
+    "valid_contract_ids": [
+      "CON-2023-0049",
+      "CON-2023-0016"
+    ]
+  },
+  {
+    "question": "What are the differences in minimum monthly volume requirements and payment terms between the agreements for Calcium Chloride with PharmaChem Exporters and Citric Acid with Food Grade Chemicals?",
+    "route": "hybrid",
+    "valid_contract_ids": [
+      "CON-2023-0036",
+      "CON-2023-0027"
+    ]
+  },
+  {
+    "question": "What are the minimum shelf life requirements for the product upon delivery?",
+    "route": "unstructured",
+    "valid_contract_ids": [
+      "CON-2023-0015"
+    ]
+  },
+  {
+    "question": "Hey, can you tell me how the maximum transport duration for the Iron Oxide from Heavy Industries Corp. compares to the one for Glycol Ether from Refined Chemicals Inc.? Also, what are the financial penalties for breaching each of those contracts?",
+    "route": "hybrid",
+    "valid_contract_ids": [
+      "CON-2023-0042",
+      "CON-2023-0017"
+    ]
+  },
+  {
+    "question": "What are the minimum and maximum volume commitments specified in the contract for Sodium Phosphate deliveries?",
+    "route": "unstructured",
+    "valid_contract_ids": [
+      "CON-2023-0046"
+    ]
+  }
+]

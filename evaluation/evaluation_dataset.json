@@ -1,0 +1,798 @@
+[
+  {
+    "question": "Given the minimum monthly volume commitments for both Titanium Carbonate and Ammonium Nitrate, what are the combined monthly volumes needed to avoid breach penalties, and how would the energy and raw material adders impact the total costs for each product?",
+    "route": "hybrid",
+    "valid_contract_ids": [
+      "CON-2023-0045",
+      "CON-2023-0005"
+    ],
+    "answer": "The combined monthly volumes needed to avoid breach penalties are 225.0 tons (75.0 tons for Titanium Carbonate and 150.0 tons for Ammonium Nitrate). The energy and raw material adders will increase the total costs for each product: Titanium Carbonate will have a total cost of 735.0 USD per ton (700.0 USD + 2.0% energy adder + 5.0% raw material adder), and Ammonium Nitrate will have a total cost of 570.0 USD per ton (500.0 USD + 2.0% energy adder + 8.0% raw material adder).",
+    "evidence": "Titanium Carbonate has a minimum monthly volume of 75.0 tons and Ammonium Nitrate has a minimum monthly volume of 150.0 tons, totaling 225.0 tons. The total cost for Titanium Carbonate is calculated as follows: Base Price = 700.0 USD, Energy Adder = 2.0% of 700.0 USD = 14.0 USD, Raw Material Adder = 5.0% of 700.0 USD = 35.0 USD, Total = 700.0 USD + 14.0 USD + 35.0 USD = 749.0 USD. The total cost for Ammonium Nitrate is calculated as follows: Base Price = 500.0 USD, Energy Adder = 2.0% of 500.0 USD = 10.0 USD, Raw Material Adder = 8.0% of 500.0 USD = 40.0 USD, Total = 500.0 USD + 10.0 USD + 40.0 USD = 550.0 USD."
+  },
+  {
+    "question": "What is the total potential financial penalty for failing to meet the minimum monthly volume requirements for both Sodium Bicarbonate and Formic Acid, considering their respective breach penalty amounts?",
+    "route": "hybrid",
+    "valid_contract_ids": [
+      "CON-2023-0008",
+      "CON-2023-0020"
+    ],
+    "answer": "13000.0 USD",
+    "evidence": "The breach penalty amount for Sodium Bicarbonate is 4000.0 USD and for Formic Acid is 9000.0 USD. Therefore, the total potential financial penalty for failing to meet the minimum monthly volume requirements for both products is 4000.0 USD + 9000.0 USD = 13000.0 USD."
+  },
+  {
+    "question": "What are the maximum and minimum volume commitments for the chemical products we need to adhere to in this contract?",
+    "route": "unstructured",
+    "valid_contract_ids": [
+      "CON-2023-0021"
+    ],
+    "answer": "Minimum monthly volume of 75.0 tons up to a maximum of 150.0 tons.",
+    "evidence": "- **Volume Commitments:** Minimum monthly volume of 75.0 tons up to a maximum of 150.0 tons."
+  },
+  {
+    "question": "What are the minimum and maximum volume commitments specified in the agreement?",
+    "route": "unstructured",
+    "valid_contract_ids": [
+      "CON-2023-0031"
+    ],
+    "answer": "Minimum monthly volume of 50.0 tons up to a maximum of 100.0 tons.",
+    "evidence": "- **Volume Commitments:** Minimum monthly volume of 50.0 tons up to a maximum of 100.0 tons."
+  },
+  {
+    "question": "What are the total potential penalties for not meeting the minimum monthly volume commitments for both Sodium Fluoride and PVA Resin, and how do their respective payment terms and energy adder percentages affect the net revenue calculations for both products?",
+    "route": "hybrid",
+    "valid_contract_ids": [
+      "CON-2023-0047",
+      "CON-2023-0019"
+    ],
+    "answer": {
+      "total_penalties": {
+        "Sodium_Fluoride": 4000.0,
+        "PVA_Resin": 3000.0
+      },
+      "net_revenue_calculations": {
+        "Sodium_Fluoride": {
+          "base_price": 480.0,
+          "energy_adder_percentage": 5.0,
+          "raw_material_adder_percentage": 3.0,
+          "payment_terms_days": 45
+        },
+        "PVA_Resin": {
+          "base_price": 925.0,
+          "energy_adder_percentage": 7.0,
+          "raw_material_adder_percentage": 5.0,
+          "payment_terms_days": 30
+        }
+      }
+    },
+    "evidence": {
+      "penalties": {
+        "Sodium_Fluoride": "Breach penalty amount of 4000.0 EUR for not meeting minimum monthly volume commitments.",
+        "PVA_Resin": "Breach penalty amount of 3000.0 USD for not meeting minimum monthly volume commitments."
+      },
+      "payment_terms": {
+        "Sodium_Fluoride": "Payment terms are net 45 days from the date of invoice.",
+        "PVA_Resin": "Payment terms are net 30 days from the date of invoice."
+      },
+      "energy_adders": {
+        "Sodium_Fluoride": "Energy adder percentage is 5.0%.",
+        "PVA_Resin": "Energy adder percentage is 7.0%."
+      },
+      "raw_material_adders": {
+        "Sodium_Fluoride": "Raw material adder percentage is 3.0%.",
+        "PVA_Resin": "Raw material adder percentage is 5.0%."
+      }
+    }
+  },
+  {
+    "question": "What is the base price of Phenol?",
+    "route": "structured",
+    "valid_contract_ids": [
+      "CON-2023-0033"
+    ],
+    "ground_truth": {
+      "type": "csv",
+      "field": "base_price",
+      "data": 1100.0
+    },
+    "answer": 1100.0,
+    "evidence": {
+      "field": "base_price",
+      "value": 1100.0
+    }
+  },
+  {
+    "question": "What is the base price of MTBE?",
+    "route": "structured",
+    "valid_contract_ids": [
+      "CON-2023-0010"
+    ],
+    "ground_truth": {
+      "type": "csv",
+      "field": "base_price",
+      "data": 950.0
+    },
+    "answer": 950.0,
+    "evidence": {
+      "field": "base_price",
+      "value": 950.0
+    }
+  },
+  {
+    "question": "What is the base price of Sodium Citrate?",
+    "route": "structured",
+    "valid_contract_ids": [
+      "CON-2023-0044"
+    ],
+    "ground_truth": {
+      "type": "csv",
+      "field": "base_price",
+      "data": 550.0
+    },
+    "answer": 550.0,
+    "evidence": {
+      "field": "base_price",
+      "value": 550.0
+    }
+  },
+  {
+    "question": "What is the total potential financial penalty for short delivery under the contracts for both Glycerin and Polystyrene if the agreed minimum monthly volume is not met, considering the different breach penalty amounts outlined in the respective Master Agreements?",
+    "route": "hybrid",
+    "valid_contract_ids": [
+      "CON-2023-0012",
+      "CON-2023-0048"
+    ],
+    "answer": "The total potential financial penalty for short delivery under the contracts for both Glycerin and Polystyrene is 6000.0 USD.",
+    "evidence": "The breach penalty amount for Glycerin (CON-2023-0012) is 4000.0 USD and for Polystyrene (CON-2023-0048) is 2000.0 USD. Therefore, 4000.0 USD + 2000.0 USD = 6000.0 USD."
+  },
+  {
+    "question": "What is the minimum monthly volume of Sodium Carbonate that we need to order?",
+    "route": "structured",
+    "valid_contract_ids": [
+      "CON-2023-0049"
+    ],
+    "ground_truth": {
+      "type": "csv",
+      "field": "min_monthly_volume_tons",
+      "data": 80.0
+    },
+    "answer": 80.0,
+    "evidence": {
+      "field": "min_monthly_volume_tons",
+      "value": 80.0
+    }
+  },
+  {
+    "question": "What is the base price for Hydrochloric Acid?",
+    "route": "structured",
+    "valid_contract_ids": [
+      "CON-2023-0014"
+    ],
+    "ground_truth": {
+      "type": "csv",
+      "field": "base_price",
+      "data": 370.0
+    },
+    "answer": 370.0,
+    "evidence": {
+      "field": "base_price",
+      "value": 370.0
+    }
+  },
+  {
+    "question": "What are the consequences outlined in the contract for failing to meet the agreed minimum monthly volume of hydrogen peroxide?",
+    "route": "unstructured",
+    "valid_contract_ids": [
+      "CON-2023-0032"
+    ],
+    "answer": "The defaulting party shall be subject to a liquidated financial penalty of 4000.0 USD.",
+    "evidence": "In the event of a material breach, short delivery, or failure to meet the agreed minimum monthly volume without a valid justification, the defaulting party shall be subject to a liquidated financial penalty of 4000.0 USD."
+  },
+  {
+    "question": "What would be the total cost per ton for Iron Oxide considering the maximum monthly volume and the energy and raw material adder percentages, and how does it compare to the total cost per ton for Chloroform at its maximum monthly volume, taking into account their respective payment terms and breach penalty amounts?",
+    "route": "hybrid",
+    "valid_contract_ids": [
+      "CON-2023-0042",
+      "CON-2023-0002"
+    ],
+    "answer": "The total cost per ton for Iron Oxide at its maximum monthly volume of 200 tons is 691.0 USD, while the total cost per ton for Chloroform at its maximum monthly volume of 80 tons is 927.0 USD. Therefore, Iron Oxide is cheaper than Chloroform by 236.0 USD per ton.",
+    "evidence": {
+      "Iron_Oxide_Calculation": {
+        "Base_Price": 640.0,
+        "Energy_Adder": "3.0% of 640.0 = 19.2",
+        "Raw_Material_Adder": "8.0% of 640.0 = 51.2",
+        "Total_Cost_Per_Ton": "640.0 + 19.2 + 51.2 = 691.0"
+      },
+      "Chloroform_Calculation": {
+        "Base_Price": 900.0,
+        "Energy_Adder": "7.0% of 900.0 = 63.0",
+        "Raw_Material_Adder": "3.0% of 900.0 = 27.0",
+        "Total_Cost_Per_Ton": "900.0 + 63.0 + 27.0 = 990.0"
+      },
+      "Comparison": {
+        "Iron_Oxide_Total_Cost_Per_Ton": 691.0,
+        "Chloroform_Total_Cost_Per_Ton": 990.0,
+        "Difference": "990.0 - 691.0 = 299.0"
+      }
+    }
+  },
+  {
+    "question": "What are the minimum and maximum volume commitments outlined in the contract?",
+    "route": "unstructured",
+    "valid_contract_ids": [
+      "CON-2023-0007"
+    ],
+    "answer": "Minimum monthly volume of 100.0 tons up to a maximum of 300.0 tons.",
+    "evidence": "- **Volume Commitments:** Minimum monthly volume of 100.0 tons up to a maximum of 300.0 tons."
+  },
+  {
+    "question": "What are the total potential financial penalties for both Decorative Chemicals Co. and Tape and Adhesive Co. if either company fails to meet their minimum monthly volume commitments specified in their respective contracts?",
+    "route": "hybrid",
+    "valid_contract_ids": [
+      "CON-2023-0045",
+      "CON-2023-0040"
+    ],
+    "answer": "The total potential financial penalties for Decorative Chemicals Co. and Tape and Adhesive Co. if either company fails to meet their minimum monthly volume commitments are 10000.0 USD and 4000.0 USD, respectively.",
+    "evidence": "According to the contract for Decorative Chemicals Co. (CON-2023-0045), the breach penalty amount is 10000.0 USD. For Tape and Adhesive Co. (CON-2023-0040), the breach penalty amount is 4000.0 USD."
+  },
+  {
+    "question": "What are the differences in breach penalty amounts and payment terms between the contracts for Ethanol and Calcium Nitrate?",
+    "route": "hybrid",
+    "valid_contract_ids": [
+      "CON-2023-0003",
+      "CON-2023-0039"
+    ],
+    "answer": "The breach penalty amount for Ethanol is 5000.0 USD, while for Calcium Nitrate it is 8000.0 EUR. The payment terms for Ethanol are net 60 days, whereas for Calcium Nitrate, they are net 30 days.",
+    "evidence": {
+      "Ethanol": {
+        "breach_penalty_amount": "5000.0 USD",
+        "payment_terms_days": "60"
+      },
+      "Calcium Nitrate": {
+        "breach_penalty_amount": "8000.0 EUR",
+        "payment_terms_days": "30"
+      }
+    }
+  },
+  {
+    "question": "What are the maximum monthly volume capacities for Iron Oxide and Calcium Nitrate, and how do the penalties for breach of contract compare between the two agreements?",
+    "route": "hybrid",
+    "valid_contract_ids": [
+      "CON-2023-0042",
+      "CON-2023-0039"
+    ],
+    "answer": {
+      "Iron Oxide": {
+        "max_monthly_volume_tons": 200.0,
+        "breach_penalty_amount": 3000.0
+      },
+      "Calcium Nitrate": {
+        "max_monthly_volume_tons": 150.0,
+        "breach_penalty_amount": 8000.0
+      }
+    },
+    "evidence": {
+      "Iron Oxide": {
+        "max_monthly_volume_tons": "200.0",
+        "breach_penalty_amount": "3000.0 USD"
+      },
+      "Calcium Nitrate": {
+        "max_monthly_volume_tons": "150.0",
+        "breach_penalty_amount": "8000.0 EUR"
+      }
+    }
+  },
+  {
+    "question": "What are the consequences detailed in the contract for failing to meet the minimum monthly volume commitment?",
+    "route": "unstructured",
+    "valid_contract_ids": [
+      "CON-2023-0049"
+    ],
+    "answer": "The defaulting party shall be subject to a liquidated financial penalty of 5000.0 EUR.",
+    "evidence": "In the event of a material breach, short delivery, or failure to meet the agreed minimum monthly volume without a valid justification, the defaulting party shall be subject to a liquidated financial penalty of 5000.0 EUR."
+  },
+  {
+    "question": "What are the minimum and maximum volume commitments stipulated in the agreement for Lead Acetate?",
+    "route": "unstructured",
+    "valid_contract_ids": [
+      "CON-2023-0011"
+    ],
+    "answer": "Minimum monthly volume of 20.0 tons up to a maximum of 60.0 tons.",
+    "evidence": "- **Volume Commitments:** Minimum monthly volume of 20.0 tons up to a maximum of 60.0 tons."
+  },
+  {
+    "question": "What is the base price for Sodium Lauryl Sulfate?",
+    "route": "structured",
+    "valid_contract_ids": [
+      "CON-2023-0035"
+    ],
+    "ground_truth": {
+      "type": "csv",
+      "field": "base_price",
+      "data": 500.0
+    },
+    "answer": 500.0,
+    "evidence": {
+      "field": "base_price",
+      "value": 500.0
+    }
+  },
+  {
+    "question": "What is the base price of the Silica Sand?",
+    "route": "structured",
+    "valid_contract_ids": [
+      "CON-2023-0007"
+    ],
+    "ground_truth": {
+      "type": "csv",
+      "field": "base_price",
+      "data": 250.0
+    },
+    "answer": 250.0,
+    "evidence": {
+      "field": "base_price",
+      "value": 250.0
+    }
+  },
+  {
+    "question": "What is the breach penalty amount if a term of the contract is violated?",
+    "route": "structured",
+    "valid_contract_ids": [
+      "CON-2023-0025"
+    ],
+    "ground_truth": {
+      "type": "csv",
+      "field": "breach_penalty_amount",
+      "data": 5000.0
+    },
+    "answer": 5000.0,
+    "evidence": {
+      "field": "breach_penalty_amount",
+      "value": 5000.0
+    }
+  },
+  {
+    "question": "How does the base price of Hydrochloric Acid from ChemReserve LLC compare to other suppliers?",
+    "route": "structured",
+    "valid_contract_ids": [
+      "CON-2023-0014"
+    ],
+    "ground_truth": {
+      "type": "csv",
+      "field": "base_price",
+      "data": 370.0
+    },
+    "answer": 370.0,
+    "evidence": {
+      "field": "base_price",
+      "value": 370.0
+    }
+  },
+  {
+    "question": "What is the base price of Ammonium Bicarbonate for Polar Chemicals Ltd.?",
+    "route": "structured",
+    "valid_contract_ids": [
+      "CON-2023-0034"
+    ],
+    "ground_truth": {
+      "type": "csv",
+      "field": "base_price",
+      "data": 470.0
+    },
+    "answer": 470.0,
+    "evidence": {
+      "field": "base_price",
+      "value": 470.0
+    }
+  },
+  {
+    "question": "What are the logistical constraints related to the delivery and shelf life of the product?",
+    "route": "unstructured",
+    "valid_contract_ids": [
+      "CON-2023-0044"
+    ],
+    "answer": "Max Transport Duration: 8 days; Minimum Shelf Life: 150 days upon delivery.",
+    "evidence": "- **Max Transport Duration:** 8 days.\n- **Minimum Shelf Life:** 150 days upon delivery."
+  },
+  {
+    "question": "What is the base price for Mica Powder?",
+    "route": "structured",
+    "valid_contract_ids": [
+      "CON-2023-0041"
+    ],
+    "ground_truth": {
+      "type": "csv",
+      "field": "base_price",
+      "data": 450.0
+    },
+    "answer": 450.0,
+    "evidence": {
+      "field": "base_price",
+      "value": 450.0
+    }
+  },
+  {
+    "question": "What is the base price for Sodium Citrate?",
+    "route": "structured",
+    "valid_contract_ids": [
+      "CON-2023-0044"
+    ],
+    "ground_truth": {
+      "type": "csv",
+      "field": "base_price",
+      "data": 550.0
+    },
+    "answer": 550.0,
+    "evidence": {
+      "field": "base_price",
+      "value": 550.0
+    }
+  },
+  {
+    "question": "What are the total potential penalties for breach of contract if Decorative Chemicals Co. fails to meet their minimum monthly volume commitments, and how do those penalties compare with the penalties outlined for Biocompatible Plastics LLC?",
+    "route": "hybrid",
+    "valid_contract_ids": [
+      "CON-2023-0045",
+      "CON-2023-0031"
+    ],
+    "answer": "The total potential penalty for breach of contract for Decorative Chemicals Co. is 10000.0 USD. In comparison, the penalty for Biocompatible Plastics LLC is 2000.0 EUR. Therefore, the penalty for Decorative Chemicals Co. is significantly higher than that for Biocompatible Plastics LLC.",
+    "evidence": "For Decorative Chemicals Co., the breach penalty amount is stated as 10000.0 USD in the contract (CON-2023-0045). For Biocompatible Plastics LLC, the breach penalty amount is 2000.0 EUR as per their contract (CON-2023-0031)."
+  },
+  {
+    "question": "What are the surcharges that apply to the base price of sodium carbonate according to the agreement?",
+    "route": "unstructured",
+    "valid_contract_ids": [
+      "CON-2023-0049"
+    ],
+    "answer": "Energy Adder: 2.0% surcharge on base price for energy fluctuations; Raw Material Adder: 6.0% surcharge on base price for raw material cost adjustments.",
+    "evidence": "- **Energy Adder:** 2.0% surcharge on base price for energy fluctuations.\n- **Raw Material Adder:** 6.0% surcharge on base price for raw material cost adjustments."
+  },
+  {
+    "question": "What penalties are outlined in the contract for failing to meet the agreed minimum monthly volume?",
+    "route": "unstructured",
+    "valid_contract_ids": [
+      "CON-2023-0049"
+    ],
+    "answer": "The penalties outlined in the contract for failing to meet the agreed minimum monthly volume is a liquidated financial penalty of 5000.0 EUR.",
+    "evidence": "In the event of a material breach, short delivery, or failure to meet the agreed minimum monthly volume without a valid justification, the defaulting party shall be subject to a liquidated financial penalty of 5000.0 EUR."
+  },
+  {
+    "question": "How does the base price of Potassium Chloride from Water Purity Solutions compare to similar products in the market?",
+    "route": "structured",
+    "valid_contract_ids": [
+      "CON-2023-0016"
+    ],
+    "ground_truth": {
+      "type": "csv",
+      "field": "base_price",
+      "data": 650.0
+    },
+    "answer": 650.0,
+    "evidence": {
+      "field": "base_price",
+      "value": 650.0
+    }
+  },
+  {
+    "question": "What is the base price for MTBE?",
+    "route": "structured",
+    "valid_contract_ids": [
+      "CON-2023-0010"
+    ],
+    "ground_truth": {
+      "type": "csv",
+      "field": "base_price",
+      "data": 950.0
+    },
+    "answer": 950.0,
+    "evidence": {
+      "field": "base_price",
+      "value": 950.0
+    }
+  },
+  {
+    "question": "What is the total maximum monthly volume of Polyethylene from Global Plastics Inc. and Polyurethane from Tape and Adhesive Co., and how do their energy and raw material adder percentages affect the final price per ton for both contracts?",
+    "route": "hybrid",
+    "valid_contract_ids": [
+      "CON-2023-0001",
+      "CON-2023-0040"
+    ],
+    "answer": "The total maximum monthly volume of Polyethylene from Global Plastics Inc. is 100.0 tons, and the total maximum monthly volume of Polyurethane from Tape and Adhesive Co. is 120.0 tons, resulting in a combined total maximum monthly volume of 220.0 tons. The final price per ton for Polyethylene, after applying the energy and raw material adders, is 1,320.0 USD (base price of 1,200.0 USD + 5% energy adder of 60.0 USD + 10% raw material adder of 120.0 USD). The final price per ton for Polyurethane is 884.0 USD (base price of 850.0 USD + 5% energy adder of 42.5 USD + 2% raw material adder of 17.0 USD).",
+    "evidence": {
+      "max_monthly_volume_polyethylene": 100.0,
+      "max_monthly_volume_polyurethane": 120.0,
+      "total_max_monthly_volume": 220.0,
+      "final_price_per_ton_polyethylene": 1320.0,
+      "final_price_per_ton_polyurethane": 884.0
+    }
+  },
+  {
+    "question": "What is the maximum monthly volume in tons for the MTBE product?",
+    "route": "structured",
+    "valid_contract_ids": [
+      "CON-2023-0010"
+    ],
+    "ground_truth": {
+      "type": "csv",
+      "field": "max_monthly_volume_tons",
+      "data": 150.0
+    },
+    "answer": 150.0,
+    "evidence": {
+      "field": "max_monthly_volume_tons",
+      "value": 150.0
+    }
+  },
+  {
+    "question": "What’s the base price for the Polyethylene Terephthalate we're considering?",
+    "route": "structured",
+    "valid_contract_ids": [
+      "CON-2023-0030"
+    ],
+    "ground_truth": {
+      "type": "csv",
+      "field": "base_price",
+      "data": 810.0
+    },
+    "answer": 810.0,
+    "evidence": {
+      "field": "base_price",
+      "value": 810.0
+    }
+  },
+  {
+    "question": "What are the differences in the maximum transport duration and the breach penalty amounts between the contracts for Tungsten Trioxide and Sodium Fluoride?",
+    "route": "hybrid",
+    "valid_contract_ids": [
+      "CON-2023-0037",
+      "CON-2023-0047"
+    ],
+    "answer": {
+      "max_transport_duration_difference_days": 10,
+      "breach_penalty_amount_difference": 1000.0
+    },
+    "evidence": {
+      "Tungsten_Trioxide": {
+        "max_transport_duration_days": 15,
+        "breach_penalty_amount": 3000.0
+      },
+      "Sodium_Fluoride": {
+        "max_transport_duration_days": 5,
+        "breach_penalty_amount": 4000.0
+      }
+    }
+  },
+  {
+    "question": "What are the consequences outlined in the agreement for failing to meet the minimum monthly volume commitment?",
+    "route": "unstructured",
+    "valid_contract_ids": [
+      "CON-2023-0024"
+    ],
+    "answer": "The defaulting party shall be subject to a liquidated financial penalty of 2000.0 EUR.",
+    "evidence": "In the event of a material breach, short delivery, or failure to meet the agreed minimum monthly volume without a valid justification, the defaulting party shall be subject to a liquidated financial penalty of 2000.0 EUR."
+  },
+  {
+    "question": "What are the minimum and maximum volume commitments specified in the agreement for the Epoxy Hardener?",
+    "route": "unstructured",
+    "valid_contract_ids": [
+      "CON-2023-0029"
+    ],
+    "answer": "Minimum monthly volume of 25.0 tons up to a maximum of 75.0 tons.",
+    "evidence": "- **Volume Commitments:** Minimum monthly volume of 25.0 tons up to a maximum of 75.0 tons."
+  },
+  {
+    "question": "How does the base price of Sodium Citrate compare to other products you offer?",
+    "route": "structured",
+    "valid_contract_ids": [
+      "CON-2023-0044"
+    ],
+    "ground_truth": {
+      "type": "csv",
+      "field": "base_price",
+      "data": 550.0
+    },
+    "answer": 550.0,
+    "evidence": {
+      "field": "base_price",
+      "value": 550.0
+    }
+  },
+  {
+    "question": "What is the base price of the polyurethane product for Tape and Adhesive Co.?",
+    "route": "structured",
+    "valid_contract_ids": [
+      "CON-2023-0040"
+    ],
+    "ground_truth": {
+      "type": "csv",
+      "field": "base_price",
+      "data": 850.0
+    },
+    "answer": 850.0,
+    "evidence": {
+      "field": "base_price",
+      "value": 850.0
+    }
+  },
+  {
+    "question": "What is the base price of PLA Resin?",
+    "route": "structured",
+    "valid_contract_ids": [
+      "CON-2023-0031"
+    ],
+    "ground_truth": {
+      "type": "csv",
+      "field": "base_price",
+      "data": 980.0
+    },
+    "answer": 980.0,
+    "evidence": {
+      "field": "base_price",
+      "value": 980.0
+    }
+  },
+  {
+    "question": "What are the maximum transport durations and breach penalty amounts specified in the agreements for Reactive Dyes and Polypropylene, and how do they compare in terms of potential penalties if the minimum monthly volumes are not met?",
+    "route": "hybrid",
+    "valid_contract_ids": [
+      "CON-2023-0028",
+      "CON-2023-0013"
+    ],
+    "answer": {
+      "Reactive Dyes": {
+        "max_transport_duration_days": 10,
+        "breach_penalty_amount": 8000.0
+      },
+      "Polypropylene": {
+        "max_transport_duration_days": 9,
+        "breach_penalty_amount": 8000.0
+      },
+      "comparison": {
+        "max_transport_duration": "Reactive Dyes has a longer maximum transport duration by 1 day.",
+        "breach_penalty": "Both agreements have the same breach penalty amount of 8000.0 EUR."
+      }
+    },
+    "evidence": {
+      "Reactive Dyes": {
+        "max_transport_duration_days": 10,
+        "breach_penalty_amount": 8000.0
+      },
+      "Polypropylene": {
+        "max_transport_duration_days": 9,
+        "breach_penalty_amount": 8000.0
+      }
+    }
+  },
+  {
+    "question": "What is the minimum monthly volume of Titanium Dioxide that Custom Paint Co. is required to purchase?",
+    "route": "structured",
+    "valid_contract_ids": [
+      "CON-2023-0018"
+    ],
+    "ground_truth": {
+      "type": "csv",
+      "field": "min_monthly_volume_tons",
+      "data": 80.0
+    },
+    "answer": 80.0,
+    "evidence": {
+      "field": "min_monthly_volume_tons",
+      "value": 80.0
+    }
+  },
+  {
+    "question": "What are the differences in the energy and raw material surcharge percentages between the contracts for Polyethylene and MTBE, and how do those differences affect the total price if both contracts are fulfilled at their respective minimum monthly volumes?",
+    "route": "hybrid",
+    "valid_contract_ids": [
+      "CON-2023-0001",
+      "CON-2023-0010"
+    ],
+    "answer": "The energy surcharge percentage for Polyethylene is 5.0%, while for MTBE it is 3.0%. The raw material surcharge percentage for Polyethylene is 10.0%, whereas for MTBE it is 7.0%. The total surcharge percentage for Polyethylene is 15.0% (5.0% + 10.0%), and for MTBE, it is 10.0% (3.0% + 7.0%). If both contracts are fulfilled at their respective minimum monthly volumes, the total price for Polyethylene would be $1,380.00 (base price $1,200.00 + 15.0% surcharge on $1,200.00 for 50 tons), and for MTBE, it would be $1,045.00 (base price $950.00 + 10.0% surcharge on $950.00 for 80 tons). Therefore, the difference in total price is $335.00, with Polyethylene being more expensive.",
+    "evidence": {
+      "Polyethylene": {
+        "base_price": 1200.0,
+        "energy_adder_percentage": 5.0,
+        "raw_material_adder_percentage": 10.0,
+        "min_monthly_volume_tons": 50.0,
+        "total_surcharge_percentage": 15.0,
+        "total_price": 1380.0
+      },
+      "MTBE": {
+        "base_price": 950.0,
+        "energy_adder_percentage": 3.0,
+        "raw_material_adder_percentage": 7.0,
+        "min_monthly_volume_tons": 80.0,
+        "total_surcharge_percentage": 10.0,
+        "total_price": 1045.0
+      },
+      "price_difference": 335.0
+    }
+  },
+  {
+    "question": "What is the minimum shelf life required for the Sodium Acetate upon delivery?",
+    "route": "unstructured",
+    "valid_contract_ids": [
+      "CON-2023-0050"
+    ],
+    "answer": "90 days upon delivery.",
+    "evidence": "- **Minimum Shelf Life:** 90 days upon delivery."
+  },
+  {
+    "question": "What is the total potential financial penalty for short delivery if the minimum monthly volume is not met for both Sodium Carbonate and Potassium Chloride, considering their respective agreements and breach penalty amounts?",
+    "route": "hybrid",
+    "valid_contract_ids": [
+      "CON-2023-0049",
+      "CON-2023-0016"
+    ],
+    "answer": "The total potential financial penalty for short delivery if the minimum monthly volume is not met for both Sodium Carbonate and Potassium Chloride is 7500.0 EUR/USD.",
+    "evidence": "The breach penalty amount for Sodium Carbonate (CON-2023-0049) is 5000.0 EUR and for Potassium Chloride (CON-2023-0016) is 2500.0 USD. Therefore, the total potential financial penalty is 5000.0 + 2500.0 = 7500.0."
+  },
+  {
+    "question": "What are the differences in minimum monthly volume requirements and payment terms between the agreements for Calcium Chloride with PharmaChem Exporters and Citric Acid with Food Grade Chemicals?",
+    "route": "hybrid",
+    "valid_contract_ids": [
+      "CON-2023-0036",
+      "CON-2023-0027"
+    ],
+    "answer": {
+      "Calcium Chloride with PharmaChem Exporters": {
+        "min_monthly_volume_tons": 50.0,
+        "payment_terms_days": 45
+      },
+      "Citric Acid with Food Grade Chemicals": {
+        "min_monthly_volume_tons": 100.0,
+        "payment_terms_days": 30
+      },
+      "differences": {
+        "min_monthly_volume_difference": 50.0,
+        "payment_terms_difference": 15
+      }
+    },
+    "evidence": {
+      "Calcium Chloride": {
+        "min_monthly_volume": 50.0,
+        "payment_terms": 45
+      },
+      "Citric Acid": {
+        "min_monthly_volume": 100.0,
+        "payment_terms": 30
+      }
+    }
+  },
+  {
+    "question": "What are the minimum shelf life requirements for the product upon delivery?",
+    "route": "unstructured",
+    "valid_contract_ids": [
+      "CON-2023-0015"
+    ],
+    "answer": "90 days upon delivery.",
+    "evidence": "- **Minimum Shelf Life:** 90 days upon delivery."
+  },
+  {
+    "question": "Hey, can you tell me how the maximum transport duration for the Iron Oxide from Heavy Industries Corp. compares to the one for Glycol Ether from Refined Chemicals Inc.? Also, what are the financial penalties for breaching each of those contracts?",
+    "route": "hybrid",
+    "valid_contract_ids": [
+      "CON-2023-0042",
+      "CON-2023-0017"
+    ],
+    "answer": "The maximum transport duration for Iron Oxide from Heavy Industries Corp. is 20 days, while for Glycol Ether from Refined Chemicals Inc. it is 7 days. The financial penalty for breaching the Iron Oxide contract is 3000.0 USD, whereas for the Glycol Ether contract, it is 2000.0 USD.",
+    "evidence": {
+      "Iron_Oxide": {
+        "max_transport_duration_days": 20,
+        "breach_penalty_amount": 3000.0
+      },
+      "Glycol_Ether": {
+        "max_transport_duration_days": 7,
+        "breach_penalty_amount": 2000.0
+      }
+    }
+  },
+  {
+    "question": "What are the minimum and maximum volume commitments specified in the contract for Sodium Phosphate deliveries?",
+    "route": "unstructured",
+    "valid_contract_ids": [
+      "CON-2023-0046"
+    ],
+    "answer": "Minimum monthly volume of 80.0 tons up to a maximum of 150.0 tons.",
+    "evidence": "- **Volume Commitments:** Minimum monthly volume of 80.0 tons up to a maximum of 150.0 tons."
+  }
+]

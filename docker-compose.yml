@@ -1,4 +1,5 @@
 services:
+
   app_postgres:
     image: pgvector/pgvector:pg16
     container_name: app_postgres
@@ -11,5 +12,28 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
 
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - app_postgres
+    volumes:
+      - grafana_data:/var/lib/grafana
+
+  app:
+    build: .
+    container_name: margin_checker_app
+    ports:
+      - "8502:8501"
+    env_file:
+      - .env
+    depends_on:
+      - app_postgres
+    volumes:
+      - .:/app
+
 volumes:
   pgdata:
+  grafana_data:

@@ -3,9 +3,11 @@ name = "margin-checker"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
+
 authors = [
-    { name = "128040@cursist.groeipunt.be", email = "128040@cursist.groeipunt.be" }
+    { name = "Mathias Lindau", email = "mlindau007@gmail.com" }
 ]
+
 requires-python = ">=3.13"
 dependencies = [
     "jupyter>=1.1.1",
@@ -16,6 +18,7 @@ dependencies = [
     "python-dotenv>=1.2.3",
     "requests>=2.34.2",
     "scikit-learn>=1.9.0",
+    "streamlit>=1.62.0",
     "tqdm>=4.70.0",
 ]
 
