@@ -7,7 +7,11 @@ from dotenv import load_dotenv
 from openai import OpenAI
 
 from src.margin_checker.router import classify_query
-from src.margin_checker.retrieval import run_hybrid, get_cached_chunks
+from src.margin_checker.retrieval import (
+    run_hybrid,
+    get_cached_chunks,
+    structured_contract_ids,
+)
 from src.margin_checker.rerank import rerank_results
 from src.margin_checker.sources import split_primary_secondary
 
@@ -545,12 +549,13 @@ Return ONLY valid JSON:
 def _use_llm_judge(with_judge):
     if with_judge is not None:
         return bool(with_judge)
-    return os.getenv("RAG_LLM_JUDGE", "0").strip().lower() in {
+    return os.getenv("RAG_LLM_JUDGE", "1").strip().lower() in {
         "1",
         "true",
         "yes",
         "on",
     }
+
 
 def rag(query, with_judge=None):
 
@@ -609,8 +614,9 @@ def rag(query, with_judge=None):
 
         # --------------------------------------------------
         # Hybrid
-        # CSV + BM25 + Vector + RRF → Cross-Encoder top 3
-        # Structured retrieval is unchanged.
+        # CSV first, then BM25 + Vector + RRF only on those
+        # contract IDs (e.g. CON-2023-0007, or two IDs if
+        # the question compared two deals).
         # --------------------------------------------------
 
         else:
@@ -624,10 +630,13 @@ def rag(query, with_judge=None):
             total_tokens += usage.total_tokens
             total_cost += calculate_cost(usage)
 
+            restrict_ids = structured_contract_ids(structured_results)
+
             text_results = run_hybrid(
                 query,
                 documents,
-                num_results=RRF_CANDIDATES
+                num_results=RRF_CANDIDATES,
+                contract_ids=restrict_ids or None,
             )
             text_results = rerank_results(
                 query,
@@ -656,7 +665,7 @@ def rag(query, with_judge=None):
     total_cost += cost
 
     # --------------------------------------------------
-    # 4. LLM Judge (optional — skipped in the UI for speed)
+    # 4. LLM Judge (on by default; RAG_LLM_JUDGE=0 to skip)
     # --------------------------------------------------
 
     if route == "structured":
@@ -692,7 +701,7 @@ def rag(query, with_judge=None):
 
         evaluation = {
             "relevance": "NOT_EVALUATED",
-            "explanation": "LLM judge skipped for faster interactive answers.",
+            "explanation": "LLM judge skipped (RAG_LLM_JUDGE=0).",
         }
 
     # --------------------------------------------------

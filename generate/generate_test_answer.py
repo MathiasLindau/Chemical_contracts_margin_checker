@@ -1,6 +1,16 @@
-import os
-import json
+"""Fill answers/evidence for evaluation_questions.json.
+
+Structured answers come from the CSV. Unstructured and hybrid answers
+are extracted by the LLM from the supplied contracts only.
+
+Running this overwrites evaluation/evaluation_dataset.json. The
+checked-in dataset already has reviewed hybrid adder math; do not
+replace it unless you re-check those calculations.
+"""
+
 import glob
+import json
+import os
 from pathlib import Path
 
 import pandas as pd
@@ -13,32 +23,35 @@ client = OpenAI()
 ROOT = Path(__file__).resolve().parents[1]
 CSV_PATH = ROOT / "data" / "chemical_contracts.csv"
 MD_PATH = ROOT / "data" / "contracts"
+QUESTIONS_PATH = ROOT / "evaluation" / "evaluation_questions.json"
+OUT_PATH = ROOT / "evaluation" / "evaluation_dataset.json"
 
 
 def ask(prompt):
-    r = client.chat.completions.create(
+    response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[{"role": "user", "content": prompt}],
         temperature=0,
-        response_format={"type": "json_object"}
+        response_format={"type": "json_object"},
     )
 
-    content = r.choices[0].message.content
+    content = response.choices[0].message.content
 
     try:
         return json.loads(content)
     except json.JSONDecodeError:
-        print("❌ Invalid JSON returned by LLM:")
+        print("Invalid JSON returned by LLM:")
         print(content[:3000])
         raise
 
 
 def load_docs():
-    return {
-        os.path.splitext(os.path.basename(p))[0]:
-        open(p, encoding="utf-8").read()
-        for p in glob.glob(str(MD_PATH / "*.md"))
-    }
+    docs = {}
+    for path in glob.glob(str(MD_PATH / "*.md")):
+        contract_id = os.path.splitext(os.path.basename(path))[0]
+        with open(path, encoding="utf-8") as handle:
+            docs[contract_id] = handle.read()
+    return docs
 
 
 def generate_answers():
@@ -46,8 +59,10 @@ def generate_answers():
     df = pd.read_csv(CSV_PATH)
     docs = load_docs()
 
-    with open(ROOT / "evaluation" / "evaluation_questions.json", encoding="utf-8") as f:
-        dataset = json.load(f)
+    with open(QUESTIONS_PATH, encoding="utf-8") as handle:
+        dataset = json.load(handle)
+
+    completed = []
 
     for i, item in enumerate(dataset, 1):
 
@@ -57,30 +72,20 @@ def generate_answers():
 
         print(f"\n[{i}/{len(dataset)}] {question}")
 
-        # ============================================================
-        # STRUCTURED
-        # Ground Truth kommt direkt aus CSV.
-        # KEIN LLM.
-        # ============================================================
         if route == "structured":
 
-            gt = item["ground_truth"]
-
-            field = gt["field"]
-            answer = gt["data"]
+            ground_truth = item["ground_truth"]
+            field = ground_truth["field"]
+            answer = ground_truth["data"]
 
             item["answer"] = answer
             item["evidence"] = {
                 "field": field,
-                "value": answer
+                "value": answer,
             }
+            completed.append(item)
+            print(f"Structured: {field} = {answer}")
 
-            print(f"✓ Structured: {field} = {answer}")
-
-        # ============================================================
-        # UNSTRUCTURED
-        # LLM extrahiert ausschließlich aus MD.
-        # ============================================================
         elif route == "unstructured":
 
             data = {
@@ -118,13 +123,9 @@ Return JSON:
 
             item["answer"] = result["answer"]
             item["evidence"] = result["evidence"]
+            completed.append(item)
+            print("Unstructured answer generated")
 
-            print("✓ Unstructured answer generated")
-
-        # ============================================================
-        # HYBRID
-        # LLM verwendet CSV + MD.
-        # ============================================================
         elif route == "hybrid":
 
             data = {}
@@ -138,15 +139,13 @@ Return JSON:
                 md_text = docs.get(contract_id, "")
 
                 if not csv_rows or not md_text:
-                    print(
-                        f"⚠️ Missing data for {contract_id}. Skipping."
-                    )
+                    print(f"Missing data for {contract_id}. Skipping.")
                     data = None
                     break
 
                 data[contract_id] = {
                     "csv": csv_rows[0],
-                    "md": md_text
+                    "md": md_text,
                 }
 
             if data is None:
@@ -183,25 +182,16 @@ Return JSON:
 
             item["answer"] = result["answer"]
             item["evidence"] = result["evidence"]
-
-            print("✓ Hybrid answer generated")
+            completed.append(item)
+            print("Hybrid answer generated")
 
         else:
-            print(f"⚠️ Unknown route: {route}")
-            continue
+            print(f"Unknown route: {route}")
 
-    # ================================================================
-    # SAVE
-    # ================================================================
-    with open(ROOT / "evaluation" / "evaluation_dataset.json", "w", encoding="utf-8") as f:
-        json.dump(
-            dataset,
-            f,
-            indent=2,
-            ensure_ascii=False
-        )
+    with open(OUT_PATH, "w", encoding="utf-8") as handle:
+        json.dump(completed, handle, indent=2, ensure_ascii=False)
 
-    print("\n✅ Answers saved to evaluation_dataset.json")
+    print(f"\n{len(completed)} answers saved to {OUT_PATH}")
 
 
 if __name__ == "__main__":

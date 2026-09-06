@@ -5,6 +5,41 @@ from minsearch import Index
 from src.margin_checker.db import load_contract_chunks, connect
 
 
+def normalize_contract_id(contract_id):
+    if not contract_id:
+        return ""
+    return str(contract_id).strip().upper()
+
+
+def filter_chunks_by_contract_ids(documents, contract_ids):
+    """Keep chunks whose contract_id is in the structured-hit set."""
+    allowed = {
+        normalize_contract_id(contract_id)
+        for contract_id in (contract_ids or [])
+        if normalize_contract_id(contract_id)
+    }
+    if not allowed:
+        return list(documents or [])
+    return [
+        document for document in (documents or [])
+        if normalize_contract_id(document.get("contract_id")) in allowed
+    ]
+
+
+def structured_contract_ids(results):
+    """Contract IDs returned by structured CSV retrieval."""
+    ids = []
+    seen = set()
+    for row in results or []:
+        if not isinstance(row, dict):
+            continue
+        contract_id = normalize_contract_id(row.get("contract_id"))
+        if contract_id and contract_id not in seen:
+            seen.add(contract_id)
+            ids.append(contract_id)
+    return ids
+
+
 BI_ENCODER_MODEL = "all-MiniLM-L6-v2"
 
 _bi_encoder = None
@@ -50,12 +85,24 @@ def vec_to_str(vector):
 # BM25
 # --------------------------------------------------
 
-def run_bm25(query, documents=None, num_results=3):
+def run_bm25(query, documents=None, num_results=3, contract_ids=None):
 
     if documents is None:
         documents = get_cached_chunks()
 
-    index = get_bm25_index(documents)
+    if contract_ids:
+        documents = filter_chunks_by_contract_ids(documents, contract_ids)
+        if not documents:
+            return []
+        index = Index(
+            text_fields=["chunk_text"],
+            keyword_fields=["contract_id"]
+        )
+        index.fit(documents)
+    else:
+        if not documents:
+            return []
+        index = get_bm25_index(documents)
 
     results = index.search(
         query=query,
@@ -75,25 +122,47 @@ def run_bm25(query, documents=None, num_results=3):
 # Vector Search
 # --------------------------------------------------
 
-def run_vector(query, num_results=3):
+def run_vector(query, num_results=3, contract_ids=None):
 
     query_vector = get_bi_encoder().encode(query)
     vector = vec_to_str(query_vector)
 
+    ids = [
+        normalize_contract_id(contract_id)
+        for contract_id in (contract_ids or [])
+        if normalize_contract_id(contract_id)
+    ]
+
     with connect() as conn:
 
-        rows = conn.execute(
-            """
-            SELECT
-                contract_id,
-                chunk_text,
-                1 - (embedding <=> %s::vector) AS score
-            FROM contract_chunks
-            ORDER BY embedding <=> %s::vector
-            LIMIT %s
-            """,
-            (vector, vector, num_results)
-        ).fetchall()
+        if ids:
+            placeholders = ",".join(["%s"] * len(ids))
+            rows = conn.execute(
+                f"""
+                SELECT
+                    contract_id,
+                    chunk_text,
+                    1 - (embedding <=> %s::vector) AS score
+                FROM contract_chunks
+                WHERE contract_id IN ({placeholders})
+                ORDER BY embedding <=> %s::vector
+                LIMIT %s
+                """,
+                (vector, *ids, vector, num_results)
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                """
+                SELECT
+                    contract_id,
+                    chunk_text,
+                    1 - (embedding <=> %s::vector) AS score
+                FROM contract_chunks
+                ORDER BY embedding <=> %s::vector
+                LIMIT %s
+                """,
+                (vector, vector, num_results)
+            ).fetchall()
 
     return [
         {
@@ -109,14 +178,23 @@ def run_vector(query, num_results=3):
 # Hybrid Search - Reciprocal Rank Fusion
 # --------------------------------------------------
 
-def run_hybrid(query, documents=None, num_results=3):
+def run_hybrid(query, documents=None, num_results=3, contract_ids=None):
 
     if documents is None:
         documents = get_cached_chunks()
 
     pool_size = max(num_results, 10)
-    vector_results = run_vector(query, num_results=pool_size)
-    bm25_results = run_bm25(query, documents, num_results=pool_size)
+    vector_results = run_vector(
+        query,
+        num_results=pool_size,
+        contract_ids=contract_ids
+    )
+    bm25_results = run_bm25(
+        query,
+        documents,
+        num_results=pool_size,
+        contract_ids=contract_ids
+    )
 
     scores = {}
     lookup = {}
