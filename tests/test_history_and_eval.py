@@ -42,6 +42,8 @@ class RetrievalEvalWiringTest(unittest.TestCase):
         self.assertIn("rerank_search", source)
         self.assertIn("RRF_CANDIDATES = 10", source)
         self.assertIn("Cross-Encoder", source)
+        self.assertIn("rerank_restricted", source)
+        self.assertIn("contract_ids=valid", source)
 
     def test_app_uses_delete_and_local_time(self):
         from pathlib import Path
