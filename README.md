@@ -95,10 +95,11 @@ The system therefore separates queries into three routes:
 
 The project currently contains:
 
-- **50 synthetic but realistically designed contracts**
-- **300 contract chunks**
-- **300 embeddings**
-- **0 empty chunks**
+- **100 synthetic contracts** (CON-2023-0001 … 0100)
+- **784 contract chunks**
+- **6 markdown templates** (Texas master, German Rahmenvertrag, English supply, SIAC, call-off PO, REACH long form)
+
+CON-2023-0001 … 0050 keep the same CSV values as the evaluation set. 0051 … 0100 add new products, customers, currencies (USD/EUR/GBP/CHF) and force-majeure wording. Markdown is no longer one cloned Texas shell.
 
 Contracts contain fields such as:
 
@@ -151,7 +152,9 @@ RRF returns the top 10 text candidates. A Cross-Encoder then scores each `(quest
 
 Structured retrieval is not reranked. The UI shows both the original RRF score and `reranker_score` on text sources.
 
-On the **hybrid** route, structured retrieval runs first. Text search (BM25 + vector + RRF + Cross-Encoder) then uses **only chunks from those contract IDs**. A cheapest-price question that lands on `CON-2023-0007` will show payment-term and adder clauses from that deal as secondary sources, not random other agreements. If structured retrieval returns two IDs (a comparison), both contracts stay in the text pool. Aggregations with no `contract_id` fall back to the full corpus. Unstructured search is unchanged.
+On the **hybrid** route, structured retrieval runs first. Text search then uses **only chunks from those contract IDs**. A cheapest-price question that lands on `CON-2023-0007` will show payment-term and adder clauses from that deal as secondary sources, not random other agreements. If structured retrieval returns two IDs (a comparison), both contracts stay in the text pool.
+
+If structured retrieval is an **aggregation or unfiltered lookup** with no contract IDs, text search is **skipped**. The model gets the CSV aggregate only, plus a note that other agreements were not searched. If the question names a product or customer, text search is limited to those rows. Filter/lookup hits are capped at 8 rows so the full catalog is never dumped into the prompt. Unstructured search is unchanged.
 
 ---
 
@@ -479,7 +482,7 @@ chemical-contracts-margin-checker/
 │   └── contracts/
 │       ├── CON-2023-0001.md
 │       ├── ...
-│       └── CON-2023-0050.md
+│       └── CON-2023-0100.md
 │
 ├── evaluation/
 │   ├── evaluate_answer.py
@@ -509,11 +512,13 @@ chemical-contracts-margin-checker/
 │       ├── rerank.py
 │       ├── retrieval.py
 │       ├── router.py
+│       ├── structured.py
 │       └── sources.py
 │
 ├── tests/
 │   ├── test_history_and_eval.py
 │   ├── test_hybrid_restrict.py
+│   ├── test_hybrid_scope.py
 │   ├── test_rerank.py
 │   └── test_sources.py
 │
@@ -545,7 +550,7 @@ The example values match `docker-compose.yml` (`password` for Postgres). Do not 
 docker compose up --build
 ```
 
-The first start waits for Postgres, creates the monitoring table, and ingests contract chunks (this downloads the embedding model and can take a few minutes). Later starts reuse the existing `pgdata` volume.
+The first start waits for Postgres, creates the monitoring table, and ingests contract chunks (this downloads the embedding model and can take a few minutes). Later starts reuse `pgdata`, but ingest runs again if fewer than 100 distinct contract IDs are stored (so the new 100-contract set is picked up).
 
 The Streamlit application is exposed on:
 
@@ -569,6 +574,7 @@ Log in with `admin` / `admin`. The Query Monitoring dashboard is provisioned fro
 2. Ask a **structured** question: `Which contract has the lowest price?`
 3. Ask an **unstructured** question: `What happens if the supplier fails to deliver the agreed quantity?`
 4. Ask a **hybrid** question: `Which contract has the lowest price and what are its payment terms?`
+5. Ask a **hybrid aggregation**: `What is the average base price and typical payment terms?` — structured numbers only; no random other agreements in secondary sources.
 
 For each answer, confirm:
 
@@ -630,7 +636,7 @@ Contractual questions use retrieved document chunks as evidence for the generate
 
 ### Hybrid route
 
-Hybrid questions combine deterministic structured information with retrieved contractual evidence. After CSV retrieval, text search is limited to those contract IDs so secondary sources are clauses from the same deal (payment terms, adders), not random other agreements.
+Hybrid questions combine deterministic structured information with retrieved contractual evidence. After CSV retrieval, text search is limited to those contract IDs. Catalog-wide averages/sums/counts do not search every markdown file; they stay on the structured result unless the question names a product or customer.
 
 ### Separate evaluation stages
 
@@ -644,11 +650,13 @@ The evaluation dataset is small (50 questions), so a few items move the percenta
 
 **Retrieval.** BM25 already beats Hybrid RRF on MRR@3. RRF is still useful as a top-10 pool for the Cross-Encoder; retuning fusion weights is not the first fix. The published retrieval table is Vector / BM25 / RRF only until you run the new rerank row. Hybrid ID-filtering is in the live app but not in that retrieval script (the script still searches the full corpus so methods stay comparable).
 
-**Reranker.** Identical strongly negative Cross-Encoder scores on secondary chunks are common: contracts share clause templates, so `(question, chunk)` looks equally weakly related. The cheap contract often comes from CSV, not those text hits.
+**Reranker.** Six clause templates now vary the legal language. Identical Cross-Encoder scores should be less common than with the old single Texas shell, but similar logistics wording can still cluster.
 
 **Speed.** The first question after a restart loads the bi-encoder and Cross-Encoder. Later questions reuse them, BM25, and cached chunks. `RAG_LLM_JUDGE=1` adds a second OpenAI call on every answer.
 
-**Robustness.** The split (router, retrieval, rerank, sources, db) is small enough to follow. Weak spots: `rag.py` is still the long orchestration file; retrieval eval duplicated search instead of calling production code (rerank row now uses production `run_hybrid` + `rerank_results`); Docker Postgres must be up or Streamlit shows a warning; no auth; structured `lookup` can return the whole CSV; hybrid aggregations with no `contract_id` search all contracts.
+**Robustness.** Lookup no longer dumps the CSV. Hybrid aggregations with no contract ID no longer search the whole corpus. Remaining limits: Docker/Postgres is still required for vectors; there is no login; `rag.py` is still the long orchestration file; the 50-question eval set still covers only CON-2023-0001 … 0050.
+
+After pulling this version, **re-ingest** so Postgres has the new 100 contracts (`docker compose up --build` or `uv run python -m src.margin_checker.ingest`). Ingest drops and rebuilds `contract_chunks` only; query history stays.
 
 The contracts are synthetic. They are realistic for a prototype, not legal or commercial advice.
 
@@ -705,6 +713,8 @@ Example:
 > Which contract has the lowest price and what are its payment terms?
 
 The system finds the matching CSV row(s), then searches only those contracts’ clauses for payment terms and related text.
+
+A catalog-wide average does **not** search every markdown file. Name a product if you also need that deal’s clauses.
 
 ### 4. Evaluation
 

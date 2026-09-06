@@ -127,8 +127,9 @@ class PipelineWiringTest(unittest.TestCase):
 
     def test_hybrid_route_restricts_text_search(self):
         source = Path("src/margin_checker/rag.py").read_text(encoding="utf-8")
-        self.assertIn("restrict_ids = structured_contract_ids", source)
-        self.assertIn("contract_ids=restrict_ids or None", source)
+        self.assertIn("restrict_ids = hybrid_text_contract_ids", source)
+        self.assertIn("if restrict_ids:", source)
+        self.assertIn("text_results = []", source)
         self.assertIn('RAG_LLM_JUDGE", "1"', source)
 
     def test_judge_defaults_on(self):
