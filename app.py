@@ -186,6 +186,13 @@ if result is not None:
             f"${result['cost']:.6f}"
         )
 
+    relevance = result.get("relevance")
+    if relevance and relevance != "NOT_EVALUATED":
+        explanation = result.get("relevance_explanation") or ""
+        st.caption(f"LLM judge: {relevance}. {explanation}".strip())
+    elif relevance == "NOT_EVALUATED":
+        st.caption("LLM judge skipped (set RAG_LLM_JUDGE=1 to enable).")
+
 
     # --------------------------------------------------
     # Sources

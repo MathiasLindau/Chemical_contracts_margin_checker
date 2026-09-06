@@ -57,16 +57,20 @@ The system therefore separates queries into three routes:
         CSV / Pandas      Contract Text    CSV / Pandas
                                |                +
                                v          Contract Text
-                         +-----------+           |
-                         | BM25 +    |           |
-                         | Vector    |           |
-                         | + RRF     |           |
-                         +-----------+           |
-              |                |                |
-              +----------------+----------------+
+                         BM25 + Vector     CSV IDs first,
+                               |           then text only
+                              RRF          on those IDs
+                               |                 |
+                        Cross-Encoder            |
+                               |                 |
+              |                |                 |
+              +----------------+-----------------+
                                |
                                v
                          LLM Answer
+                               |
+                               v
+                    Primary / Secondary sources
                                |
                                v
                        Evaluation / Logging
@@ -77,8 +81,8 @@ The system therefore separates queries into three routes:
 | Route | Data source | Retrieval / analysis |
 |---|---|---|
 | Structured | CSV / Pandas | Deterministic filtering, ranking and calculations |
-| Unstructured | Contract Markdown | BM25 + Vector Search + Reciprocal Rank Fusion |
-| Hybrid | CSV / Pandas + Contract Markdown | Structured analysis + BM25 + Vector Search + RRF |
+| Unstructured | Contract Markdown | BM25 + Vector + RRF (top 10) → Cross-Encoder (top 3) |
+| Hybrid | CSV / Pandas + Contract Markdown | Structured CSV first, then the same text pipeline **restricted to those contract IDs** |
 
 **Important terminology:**
 
@@ -146,6 +150,8 @@ RRF returns the top 10 text candidates. A Cross-Encoder then scores each `(quest
 `cross-encoder/ms-marco-MiniLM-L-6-v2`
 
 Structured retrieval is not reranked. The UI shows both the original RRF score and `reranker_score` on text sources.
+
+On the **hybrid** route, structured retrieval runs first. Text search (BM25 + vector + RRF + Cross-Encoder) then uses **only chunks from those contract IDs**. A cheapest-price question that lands on `CON-2023-0007` will show payment-term and adder clauses from that deal as secondary sources, not random other agreements. If structured retrieval returns two IDs (a comparison), both contracts stay in the text pool. Aggregations with no `contract_id` fall back to the full corpus. Unstructured search is unchanged.
 
 ---
 
@@ -272,26 +278,24 @@ Contract Data + Evidence
 
 The judge therefore provides an evaluation signal; it does not define what is correct.
 
+After the app writes an answer, it can call the LLM again and ask whether that answer is relevant. That second call is the judge. It costs extra time and extra tokens.
+
+`RAG_LLM_JUDGE=1` is the default in `.env.example`. Every Streamlit answer then gets a relevance label (`RELEVANT` / `PARTLY_RELEVANT` / `NON_RELEVANT`) stored in `query_logs`. Set `RAG_LLM_JUDGE=0` to skip it. `python evaluation/evaluate_answer.py --live` always runs the judge.
+
 ---
 
 ## Query Generation
 
-The evaluation dataset contains realistic variations in user phrasing, including:
+`generate/generate_test_questions.py` and `generate/generate_test_answer.py` are the generators behind the evaluation files. They are **ok to keep**; they are not a live test of the app.
 
-- informal questions
-- vague requests
-- comparisons
-- multi-step questions
-- cost-focused questions
-- volume questions
-- adder questions
-- penalty-related questions
+- The **published** set is `evaluation/evaluation_dataset.json` (50 items). Do not overwrite it unless you also re-check hybrid adder math.
+- Questions: random mix of structured / unstructured / hybrid, with styles (informal, typos, comparison, and so on). Structured items ask for **one CSV field** and store deterministic ground truth. Hybrid items require **both** selected contracts plus CSV **and** Markdown.
+- Answers: structured values come from the CSV (no LLM). Unstructured and hybrid answers are extracted from the supplied contracts only (`temperature=0`).
+- Question generation uses `temperature=0.9` for phrasing variety. A “comparison” style on a structured item is still one field of one contract.
+- Unstructured questions can still mention volume or adders when those lines appear in the Markdown. That is expected.
+- 50 items is a small set; route mix is random, so counts are not balanced on every run.
 
-Structured questions are tied to specific CSV fields and use deterministic ground truth rather than asking the LLM to calculate the expected answer.
-
-The project also includes evaluation questions with supporting evidence.
-
-Hybrid adder calculations in the evaluation dataset were checked against the CSV. Totals are `base_price * (1 + energy_adder_percentage/100 + raw_material_adder_percentage/100)`.
+Hybrid adder calculations in the checked-in dataset were checked against the CSV. Totals are `base_price * (1 + energy_adder_percentage/100 + raw_material_adder_percentage/100)`.
 
 ---
 
@@ -357,13 +361,20 @@ The monitoring layer records information such as:
 - relevance explanation
 - user feedback
 
-Grafana can be connected to PostgreSQL for monitoring dashboards such as:
+Docker Compose starts Grafana with a **checked-in dashboard**, so a clone gets the same boards without exporting from a laptop:
 
-- total queries
+- datasource: PostgreSQL (`query_logs` on `app_postgres`)
+- dashboard JSON: `grafana/dashboards/query-monitoring.json`
+- provisioning: `grafana/provisioning/`
+
+Open http://localhost:3000 (user `admin`, password `admin` unless `GRAFANA_ADMIN_PASSWORD` is set). The home dashboard is **Query Monitoring**:
+
+- total queries, average response time, total cost, average tokens
 - queries by route
-- answer quality
-- queries per day
-- response time over time
+- answer quality (LLM judge)
+- user feedback
+- queries, response time, cost and tokens over time
+- recent query table
 
 ---
 
@@ -465,6 +476,13 @@ chemical-contracts-margin-checker/
 │   ├── generate_test_answer.py
 │   └── generate_test_questions.py
 │
+├── grafana/
+│   ├── dashboards/
+│   │   └── query-monitoring.json
+│   └── provisioning/
+│       ├── dashboards/
+│       └── datasources/
+│
 ├── src/
 │   └── margin_checker/
 │       ├── __init__.py
@@ -473,10 +491,13 @@ chemical-contracts-margin-checker/
 │       ├── rag.py
 │       ├── rerank.py
 │       ├── retrieval.py
-│       └── router.py
+│       ├── router.py
+│       └── sources.py
 │
 ├── tests/
-│   └── test_rerank.py
+│   ├── test_hybrid_restrict.py
+│   ├── test_rerank.py
+│   └── test_sources.py
 │
 ├── pyproject.toml
 ├── uv.lock
@@ -520,6 +541,8 @@ Grafana is exposed on:
 http://localhost:3000
 ```
 
+Log in with `admin` / `admin`. The Query Monitoring dashboard is provisioned from the repo. If Grafana was already running with an old `grafana_data` volume, run `docker compose up -d grafana` after pulling so it reloads provisioning.
+
 ### 3. How to test this version
 
 **Manual UI checks** (use the demo questions below):
@@ -532,10 +555,14 @@ http://localhost:3000
 For each answer, confirm:
 
 - the **Route** metric matches the intended route
-- **Sources** show contract IDs (and RRF scores for text/hybrid)
+- **Primary sources** list the contract IDs used in the answer
+- on hybrid, **Secondary sources** are clauses from those same contract IDs (not unrelated agreements)
+- the LLM judge label is stored (and shown) unless `RAG_LLM_JUDGE=0`
 - response time, tokens, and cost are shown
 - thumbs-up/down feedback can be saved
 - the question appears in **Query History** after refresh
+
+Then open http://localhost:3000 and confirm the Query Monitoring dashboard loads against Postgres.
 
 **Automated evaluations** (need `.env` with `OPENAI_API_KEY` and `DB_CONN` pointing at reachable Postgres):
 
@@ -583,7 +610,7 @@ Contractual questions use retrieved document chunks as evidence for the generate
 
 ### Hybrid route
 
-Hybrid questions combine deterministic structured information with retrieved contractual evidence.
+Hybrid questions combine deterministic structured information with retrieved contractual evidence. After CSV retrieval, text search is limited to those contract IDs so secondary sources are clauses from the same deal (payment terms, adders), not random other agreements.
 
 ### Separate evaluation stages
 
@@ -599,6 +626,8 @@ Retrieval is still an important area for improvement. BM25 currently performs st
 
 The contracts are synthetic rather than real-world commercial contracts. They are designed to be realistic for prototyping and evaluation, but they should not be interpreted as legal or commercial advice.
 
+If structured hybrid retrieval returns no `contract_id` (averages, sums, counts), text search still uses the full corpus.
+
 The future market-data integration is a planned extension and is not yet part of the current margin calculation pipeline.
 
 ---
@@ -611,7 +640,7 @@ Potential next steps include:
 2. Calculate dynamic contract margins from daily market inputs.
 3. Improve structured query handling and calculations.
 4. Experiment with retrieval parameters and chunking strategies.
-5. Improve hybrid ranking.
+5. Include the Cross-Encoder in retrieval evaluation.
 6. Expand the evaluation dataset.
 7. Add more difficult multi-hop questions.
 8. Improve monitoring and alerting.
@@ -642,7 +671,7 @@ Example:
 
 > What happens if the supplier fails to deliver the agreed quantity?
 
-The system retrieves relevant contract text using BM25 + vector search + RRF.
+The system retrieves relevant contract text using BM25 + vector search + RRF, then reranks with the Cross-Encoder.
 
 ### 3. Hybrid question
 
@@ -652,7 +681,7 @@ Example:
 
 > Which contract has the lowest price and what are its payment terms?
 
-The system combines structured analysis with contract-text retrieval.
+The system finds the matching CSV row(s), then searches only those contracts’ clauses for payment terms and related text.
 
 ### 4. Evaluation
 
@@ -681,12 +710,13 @@ Structured
 
 Unstructured
     -> Contract Text
-    -> BM25 + Vector Search + RRF
+    -> BM25 + Vector + RRF (top 10)
+    -> Cross-Encoder (top 3)
 
 Hybrid
     -> CSV / Pandas
-    -> Contract Text
-    -> BM25 + Vector Search + RRF
+    -> text search restricted to those contract IDs
+    -> same BM25 + Vector + RRF + Cross-Encoder pipeline
 ```
 
 The current prototype focuses on contract understanding and evidence-based answers.
