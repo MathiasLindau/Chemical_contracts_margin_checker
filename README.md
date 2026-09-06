@@ -57,16 +57,23 @@ The system therefore separates queries into three routes:
         CSV / Pandas      Contract Text    CSV / Pandas
                                |                +
                                v          Contract Text
-                         +-----------+           |
-                         | BM25 +    |           |
-                         | Vector    |           |
-                         | + RRF     |           |
-                         +-----------+           |
-              |                |                |
-              +----------------+----------------+
+                         BM25 + Vector           |
+                               |                 |
+                              RRF                |
+                               |                 |
+                        Top 10 candidates        |
+                               |                 |
+                         Cross-Encoder           |
+                               |                 |
+                            Top 3                |
+              |                |                 |
+              +----------------+-----------------+
                                |
                                v
                          LLM Answer
+                               |
+                               v
+                    Primary / Secondary sources
                                |
                                v
                        Evaluation / Logging
@@ -77,8 +84,8 @@ The system therefore separates queries into three routes:
 | Route | Data source | Retrieval / analysis |
 |---|---|---|
 | Structured | CSV / Pandas | Deterministic filtering, ranking and calculations |
-| Unstructured | Contract Markdown | BM25 + Vector Search + Reciprocal Rank Fusion |
-| Hybrid | CSV / Pandas + Contract Markdown | Structured analysis + BM25 + Vector Search + RRF |
+| Unstructured | Contract Markdown | BM25 + Vector + RRF (top 10) → Cross-Encoder (top 3) |
+| Hybrid | CSV / Pandas + Contract Markdown | Structured analysis + the same text pipeline |
 
 **Important terminology:**
 
@@ -147,6 +154,10 @@ RRF returns the top 10 text candidates. A Cross-Encoder then scores each `(quest
 
 Structured retrieval is not reranked. The UI shows both the original RRF score and `reranker_score` on text sources.
 
+The published retrieval table below does **not** include this Cross-Encoder. `evaluate_retrieval.py` still measures Vector, BM25 and RRF only.
+
+Identical reranker scores (for example `-11.2868` on several contracts) are common here. Most contracts share the same clause template; only product, price and penalty values change. For a cost question, those text chunks are all weakly related, so the Cross-Encoder assigns almost the same strongly negative score. The useful contract then comes from the CSV and is shown as a **primary / structured** source. That is expected with the current chunking, not a display bug.
+
 ---
 
 ## Evaluation
@@ -199,7 +210,7 @@ Current evaluation results:
 | BM25 | 72.0% | 66.0% | 0.7067 |
 | Hybrid | 72.0% | 66.0% | 0.6600 |
 
-On the current evaluation dataset, BM25 performs strongly because many contract questions depend on exact contractual terminology. Hybrid retrieval combines both retrieval signals.
+On the current evaluation dataset, BM25 performs strongly because many contract questions depend on exact contractual terminology. Hybrid RRF matches BM25 on Hit@3 but has a lower MRR@3, which means vector hits sometimes push the correct contract down the ranked list.
 
 ---
 
@@ -272,6 +283,8 @@ Contract Data + Evidence
 
 The judge therefore provides an evaluation signal; it does not define what is correct.
 
+In the Streamlit UI the judge is **off by default** so answers stay faster. Set `RAG_LLM_JUDGE=1` in `.env` to enable it on every request. `python evaluation/evaluate_answer.py --live` always runs the judge.
+
 ---
 
 ## Query Generation
@@ -304,13 +317,13 @@ The application provides:
 - natural-language contract questions
 - automatic route classification
 - answer generation
-- source display
-- retrieval scores
-- response time
-- token usage
-- estimated API cost
-- answer-quality feedback
+- **Primary sources** (contract IDs cited in the answer)
+- **Secondary sources** (other retrieved hits, with RRF and reranker scores on text chunks)
+- response time, token usage and estimated API cost
+- thumbs-up / thumbs-down feedback
 - query history
+
+The first question after a restart can take longer while the Cross-Encoder loads. Later questions reuse the loaded model, the BM25 index and the cached chunks.
 
 Example application flow:
 
@@ -425,7 +438,7 @@ The long-term objective is to move from static contract analysis toward **dynami
 - Streamlit
 - PostgreSQL
 - pgvector
-- Sentence Transformers
+- Sentence Transformers (bi-encoder + Cross-Encoder reranker)
 - BM25 / minsearch
 - Pandas
 - JSON / CSV
@@ -532,10 +545,13 @@ http://localhost:3000
 For each answer, confirm:
 
 - the **Route** metric matches the intended route
-- **Sources** show contract IDs (and RRF scores for text/hybrid)
+- **Primary sources** list the contract IDs used in the answer
+- **Secondary sources** list other retrieved text hits (RRF and Reranker scores)
 - response time, tokens, and cost are shown
 - thumbs-up/down feedback can be saved
 - the question appears in **Query History** after refresh
+
+Local Streamlit (`streamlit run app.py`) is at http://localhost:8501. Docker Compose publishes the app at http://localhost:8502.
 
 **Automated evaluations** (need `.env` with `OPENAI_API_KEY` and `DB_CONN` pointing at reachable Postgres):
 
@@ -585,6 +601,8 @@ Contractual questions use retrieved document chunks as evidence for the generate
 
 Hybrid questions combine deterministic structured information with retrieved contractual evidence.
 
+After the answer is generated, **primary sources** are the retrieved rows whose contract IDs appear in the answer. **Secondary sources** are the other hits. This is display/attribution, not a second retrieval stage.
+
 ### Separate evaluation stages
 
 Routing, retrieval and answer generation are evaluated independently. This makes it easier to identify where errors originate.
@@ -595,9 +613,15 @@ Routing, retrieval and answer generation are evaluated independently. This makes
 
 The current evaluation dataset is relatively small, so individual questions can have a noticeable impact on the reported metrics.
 
-Retrieval is still an important area for improvement. BM25 currently performs strongly on the evaluation dataset, while hybrid retrieval combines lexical and semantic retrieval signals.
+Retrieval is still an important area for improvement. BM25 currently performs strongly on the evaluation dataset. Hybrid RRF does not beat BM25 on MRR@3. The Cross-Encoder is not yet part of `evaluate_retrieval.py`.
+
+Hybrid answers often cite a **structured** CSV row while secondary text chunks look unrelated. Restricting text search to the structured contract IDs would reduce that noise.
+
+Identical Cross-Encoder scores on secondary chunks usually mean those templates are equally weakly related to the question, not that ranking is broken.
 
 The contracts are synthetic rather than real-world commercial contracts. They are designed to be realistic for prototyping and evaluation, but they should not be interpreted as legal or commercial advice.
+
+Grafana is started by Docker Compose but dashboards are not pre-provisioned.
 
 The future market-data integration is a planned extension and is not yet part of the current margin calculation pipeline.
 
@@ -611,8 +635,9 @@ Potential next steps include:
 2. Calculate dynamic contract margins from daily market inputs.
 3. Improve structured query handling and calculations.
 4. Experiment with retrieval parameters and chunking strategies.
-5. Improve hybrid ranking.
-6. Expand the evaluation dataset.
+5. Restrict hybrid text retrieval to structured contract IDs.
+6. Include the Cross-Encoder in retrieval evaluation.
+7. Expand the evaluation dataset.
 7. Add more difficult multi-hop questions.
 8. Improve monitoring and alerting.
 9. Add supply-chain risk and opportunity scoring.
@@ -642,7 +667,7 @@ Example:
 
 > What happens if the supplier fails to deliver the agreed quantity?
 
-The system retrieves relevant contract text using BM25 + vector search + RRF.
+The system retrieves relevant contract text using BM25 + vector search + RRF, then reranks with the Cross-Encoder.
 
 ### 3. Hybrid question
 
@@ -652,15 +677,15 @@ Example:
 
 > Which contract has the lowest price and what are its payment terms?
 
-The system combines structured analysis with contract-text retrieval.
+The system combines structured analysis with reranked contract-text retrieval. Primary sources should match the contract IDs in the answer.
 
 ### 4. Evaluation
 
 Inspect:
 
 - route
-- sources
-- retrieval scores
+- primary vs secondary sources
+- retrieval / reranker scores
 - response time
 - token usage
 - cost
@@ -681,12 +706,13 @@ Structured
 
 Unstructured
     -> Contract Text
-    -> BM25 + Vector Search + RRF
+    -> BM25 + Vector + RRF (top 10)
+    -> Cross-Encoder (top 3)
 
 Hybrid
     -> CSV / Pandas
-    -> Contract Text
-    -> BM25 + Vector Search + RRF
+    -> Contract Text (same text pipeline)
+    -> Primary sources = IDs cited in the answer
 ```
 
 The current prototype focuses on contract understanding and evidence-based answers.
