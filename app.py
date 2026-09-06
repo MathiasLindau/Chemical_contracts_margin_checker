@@ -200,13 +200,15 @@ if result is not None:
 
         contract_id = source.get("contract_id")
 
-        # Text / hybrid source with RRF score
+        # Text / hybrid source with RRF and optional reranker score
         if "score" in source and contract_id:
 
-            label = (
-                f"{contract_id} "
-                f"(RRF: {source['score']:.5f})"
-            )
+            parts = [f"RRF: {source['score']:.5f}"]
+            reranker_score = source.get("reranker_score")
+            if reranker_score is not None:
+                parts.append(f"Reranker: {reranker_score:.4f}")
+
+            label = f"{contract_id} ({', '.join(parts)})"
 
         # Structured source with contract ID
         elif contract_id:

@@ -7,6 +7,7 @@ from openai import OpenAI
 
 from src.margin_checker.router import classify_query
 from src.margin_checker.retrieval import run_hybrid
+from src.margin_checker.rerank import rerank_results
 from src.margin_checker.db import load_contract_chunks
 
 
@@ -16,6 +17,8 @@ client = OpenAI()
 
 CSV_PATH = "data/chemical_contracts.csv"
 MODEL = "gpt-4o-mini"
+RRF_CANDIDATES = 10
+RERANK_TOP_K = 3
 
 
 # --------------------------------------------------
@@ -581,7 +584,7 @@ def rag(query):
 
         # --------------------------------------------------
         # Unstructured
-        # BM25 + Vector + RRF
+        # BM25 + Vector + RRF → Cross-Encoder top 3
         # --------------------------------------------------
 
         if route == "unstructured":
@@ -589,12 +592,18 @@ def rag(query):
             results = run_hybrid(
                 query,
                 documents,
-                num_results=3
+                num_results=RRF_CANDIDATES
+            )
+            results = rerank_results(
+                query,
+                results,
+                top_k=RERANK_TOP_K
             )
 
         # --------------------------------------------------
         # Hybrid
-        # CSV + BM25 + Vector + RRF
+        # CSV + BM25 + Vector + RRF → Cross-Encoder top 3
+        # Structured retrieval is unchanged.
         # --------------------------------------------------
 
         else:
@@ -611,7 +620,12 @@ def rag(query):
             text_results = run_hybrid(
                 query,
                 documents,
-                num_results=3
+                num_results=RRF_CANDIDATES
+            )
+            text_results = rerank_results(
+                query,
+                text_results,
+                top_k=RERANK_TOP_K
             )
 
             results = {

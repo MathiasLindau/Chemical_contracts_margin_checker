@@ -139,6 +139,14 @@ This allows the system to benefit from both:
 - semantic similarity
 - exact contractual terminology and keyword matches
 
+### Cross-Encoder reranking
+
+RRF returns the top 10 text candidates. A Cross-Encoder then scores each `(question, chunk)` pair and keeps the top 3 for the LLM:
+
+`cross-encoder/ms-marco-MiniLM-L-6-v2`
+
+Structured retrieval is not reranked. The UI shows both the original RRF score and `reranker_score` on text sources.
+
 ---
 
 ## Evaluation

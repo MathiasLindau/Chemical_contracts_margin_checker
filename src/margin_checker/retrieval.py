@@ -1,12 +1,22 @@
 # src/margin_checker/retrieval.py
 
 from minsearch import Index
-from sentence_transformers import SentenceTransformer
 
 from src.margin_checker.db import load_contract_chunks, connect
 
 
-model = SentenceTransformer("all-MiniLM-L6-v2")
+BI_ENCODER_MODEL = "all-MiniLM-L6-v2"
+
+_bi_encoder = None
+
+
+def get_bi_encoder():
+    """Load the bi-encoder once, on first vector search."""
+    global _bi_encoder
+    if _bi_encoder is None:
+        from sentence_transformers import SentenceTransformer
+        _bi_encoder = SentenceTransformer(BI_ENCODER_MODEL)
+    return _bi_encoder
 
 
 def vec_to_str(vector):
@@ -49,7 +59,7 @@ def run_bm25(query, documents=None, num_results=3):
 
 def run_vector(query, num_results=3):
 
-    query_vector = model.encode(query)
+    query_vector = get_bi_encoder().encode(query)
     vector = vec_to_str(query_vector)
 
     with connect() as conn:
@@ -86,8 +96,9 @@ def run_hybrid(query, documents=None, num_results=3):
     if documents is None:
         documents = load_contract_chunks()
 
-    vector_results = run_vector(query, num_results=5)
-    bm25_results = run_bm25(query, documents, num_results=5)
+    pool_size = max(num_results, 10)
+    vector_results = run_vector(query, num_results=pool_size)
+    bm25_results = run_bm25(query, documents, num_results=pool_size)
 
     scores = {}
     lookup = {}
