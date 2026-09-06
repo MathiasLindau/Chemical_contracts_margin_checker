@@ -35,16 +35,20 @@ with psycopg.connect(db_conn) as conn:
         """
     ).fetchone()[0]
     count = 0
+    n_contracts = 0
     if exists:
         count = conn.execute("SELECT COUNT(*) FROM contract_chunks").fetchone()[0]
+        n_contracts = conn.execute(
+            "SELECT COUNT(DISTINCT contract_id) FROM contract_chunks"
+        ).fetchone()[0]
 
-if count == 0:
+if count == 0 or n_contracts < 100:
     from src.margin_checker.ingest import main as ingest_contracts
 
     print("Ingesting contract chunks...")
     ingest_contracts()
 else:
-    print(f"Skipping ingest; {count} contract chunks already present.")
+    print(f"Skipping ingest; {count} chunks from {n_contracts} contracts already present.")
 PY
 
 exec streamlit run app.py --server.address=0.0.0.0

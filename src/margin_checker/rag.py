@@ -10,7 +10,12 @@ from src.margin_checker.router import classify_query
 from src.margin_checker.retrieval import (
     run_hybrid,
     get_cached_chunks,
-    structured_contract_ids,
+    hybrid_text_contract_ids,
+)
+from src.margin_checker.structured import (
+    STRUCTURED_ROW_CAP,
+    apply_catalog_filters,
+    cap_structured_rows,
 )
 from src.margin_checker.rerank import rerank_results
 from src.margin_checker.sources import split_primary_secondary
@@ -101,6 +106,11 @@ Rules:
 - "how many" → count
 - Use n=null if not required.
 - Use value=null if not required.
+- If the question names a product, set product_name.
+- If the question names a customer, set customer_name.
+- If the question names a currency, set currency.
+- lookup MUST include product_name or customer_name.
+- Never use lookup to return the entire catalog.
 
 Return ONLY valid JSON:
 
@@ -108,7 +118,10 @@ Return ONLY valid JSON:
     "field": "base_price",
     "operation": "top_n",
     "n": 3,
-    "value": null
+    "value": null,
+    "product_name": null,
+    "customer_name": null,
+    "currency": null
 }
 """
             },
@@ -143,15 +156,18 @@ def find_structured_contracts(query):
     n = specification.get("n")
     value = specification.get("value")
 
+    working = apply_catalog_filters(df, specification, query)
+
     # ----------------------------------------------
     # Create calculated fields
     # ----------------------------------------------
 
     if field == "overall_adder":
 
-        df["_overall_adder"] = (
-            df["energy_adder_percentage"]
-            + df["raw_material_adder_percentage"]
+        working = working.copy()
+        working["_overall_adder"] = (
+            working["energy_adder_percentage"]
+            + working["raw_material_adder_percentage"]
         )
 
         sort_field = "_overall_adder"
@@ -164,11 +180,23 @@ def find_structured_contracts(query):
     # Validate field
     # ----------------------------------------------
 
-    if sort_field not in df.columns:
+    if sort_field not in working.columns:
 
         raise ValueError(
             f"Invalid structured field: {field}"
         )
+
+    scoped = len(working) < len(df)
+
+    def aggregation_row(payload):
+        row = dict(payload)
+        row["n_contracts"] = int(len(working))
+        row["scope"] = "filtered" if scoped else "all_contracts"
+        if scoped and len(working) <= STRUCTURED_ROW_CAP:
+            row["contract_ids"] = [
+                str(item) for item in working["contract_id"].tolist()
+            ]
+        return [row]
 
     # ----------------------------------------------
     # Minimum
@@ -176,13 +204,15 @@ def find_structured_contracts(query):
 
     if operation == "min":
 
-        result = df.loc[
-            df[sort_field].idxmin()
-        ]
-
-        results = [
-            result.to_dict()
-        ]
+        if working.empty:
+            results = []
+        else:
+            result = working.loc[
+                working[sort_field].idxmin()
+            ]
+            results = [
+                result.to_dict()
+            ]
 
     # ----------------------------------------------
     # Maximum
@@ -190,13 +220,15 @@ def find_structured_contracts(query):
 
     elif operation == "max":
 
-        result = df.loc[
-            df[sort_field].idxmax()
-        ]
-
-        results = [
-            result.to_dict()
-        ]
+        if working.empty:
+            results = []
+        else:
+            result = working.loc[
+                working[sort_field].idxmax()
+            ]
+            results = [
+                result.to_dict()
+            ]
 
     # ----------------------------------------------
     # Bottom N
@@ -207,7 +239,7 @@ def find_structured_contracts(query):
         n = int(n or 1)
 
         results = (
-            df.sort_values(
+            working.sort_values(
                 by=sort_field,
                 ascending=True
             )
@@ -224,7 +256,7 @@ def find_structured_contracts(query):
         n = int(n or 1)
 
         results = (
-            df.sort_values(
+            working.sort_values(
                 by=sort_field,
                 ascending=False
             )
@@ -238,13 +270,16 @@ def find_structured_contracts(query):
 
     elif operation == "filter_above":
 
-        results = (
-            df[df[sort_field] > value]
+        matched = (
+            working[working[sort_field] > value]
             .sort_values(
                 by=sort_field,
                 ascending=False
             )
-            .to_dict(orient="records")
+        )
+        results = cap_structured_rows(
+            matched.to_dict(orient="records"),
+            match_count=len(matched),
         )
 
     # ----------------------------------------------
@@ -253,13 +288,16 @@ def find_structured_contracts(query):
 
     elif operation == "filter_below":
 
-        results = (
-            df[df[sort_field] < value]
+        matched = (
+            working[working[sort_field] < value]
             .sort_values(
                 by=sort_field,
                 ascending=True
             )
-            .to_dict(orient="records")
+        )
+        results = cap_structured_rows(
+            matched.to_dict(orient="records"),
+            match_count=len(matched),
         )
 
     # ----------------------------------------------
@@ -268,12 +306,10 @@ def find_structured_contracts(query):
 
     elif operation == "average":
 
-        results = [{
+        results = aggregation_row({
             "field": field,
-            "average": float(
-                df[sort_field].mean()
-            )
-        }]
+            "average": float(working[sort_field].mean()) if len(working) else None,
+        })
 
     # ----------------------------------------------
     # Sum
@@ -281,12 +317,10 @@ def find_structured_contracts(query):
 
     elif operation == "sum":
 
-        results = [{
+        results = aggregation_row({
             "field": field,
-            "sum": float(
-                df[sort_field].sum()
-            )
-        }]
+            "sum": float(working[sort_field].sum()) if len(working) else None,
+        })
 
     # ----------------------------------------------
     # Count
@@ -294,11 +328,9 @@ def find_structured_contracts(query):
 
     elif operation == "count":
 
-        results = [{
-            "count": int(
-                df[sort_field].count()
-            )
-        }]
+        results = aggregation_row({
+            "count": int(working[sort_field].count()),
+        })
 
     # ----------------------------------------------
     # Lookup
@@ -306,9 +338,19 @@ def find_structured_contracts(query):
 
     elif operation == "lookup":
 
-        results = df.to_dict(
-            orient="records"
-        )
+        if len(working) == len(df):
+            results = [{
+                "error": "lookup_requires_entity",
+                "message": (
+                    "Lookup did not name a product or customer, "
+                    "so the full catalog was not returned."
+                ),
+            }]
+        else:
+            results = cap_structured_rows(
+                working.to_dict(orient="records"),
+                match_count=len(working),
+            )
 
     else:
 
@@ -360,6 +402,9 @@ def generate_answer(query, route, results):
         text = "\n\n".join(
             f"Contract: {r['contract_id']}\n{r['chunk_text']}"
             for r in results["text"]
+        ) or (
+            "(No contract-text search. Structured result is an aggregation "
+            "or catalog-wide set; clauses from other agreements were not used.)"
         )
 
         context = (
@@ -630,19 +675,26 @@ def rag(query, with_judge=None):
             total_tokens += usage.total_tokens
             total_cost += calculate_cost(usage)
 
-            restrict_ids = structured_contract_ids(structured_results)
+            restrict_ids = hybrid_text_contract_ids(
+                structured_results,
+                query=query,
+                catalog=pd.read_csv(CSV_PATH),
+            )
 
-            text_results = run_hybrid(
-                query,
-                documents,
-                num_results=RRF_CANDIDATES,
-                contract_ids=restrict_ids or None,
-            )
-            text_results = rerank_results(
-                query,
-                text_results,
-                top_k=RERANK_TOP_K
-            )
+            if restrict_ids:
+                text_results = run_hybrid(
+                    query,
+                    documents,
+                    num_results=RRF_CANDIDATES,
+                    contract_ids=restrict_ids,
+                )
+                text_results = rerank_results(
+                    query,
+                    text_results,
+                    top_k=RERANK_TOP_K
+                )
+            else:
+                text_results = []
 
             results = {
                 "structured": structured_results,

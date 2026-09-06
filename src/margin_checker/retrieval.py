@@ -26,18 +26,87 @@ def filter_chunks_by_contract_ids(documents, contract_ids):
     ]
 
 
+HYBRID_TEXT_MAX_CONTRACTS = 5
+
+
 def structured_contract_ids(results):
     """Contract IDs returned by structured CSV retrieval."""
     ids = []
     seen = set()
+
+    def add(contract_id):
+        normalized = normalize_contract_id(contract_id)
+        if normalized and normalized not in seen:
+            seen.add(normalized)
+            ids.append(normalized)
+
     for row in results or []:
         if not isinstance(row, dict):
             continue
+        add(row.get("contract_id"))
+        extra = row.get("contract_ids") or row.get("sample_contract_ids") or []
+        if isinstance(extra, str):
+            extra = [extra]
+        for contract_id in extra:
+            add(contract_id)
+    return ids
+
+
+def match_named_contracts(query, catalog):
+    """IDs whose product or customer name appears in the question."""
+    question = (query or "").lower()
+    if not question or catalog is None or len(catalog) == 0:
+        return []
+
+    rows = catalog.to_dict(orient="records")
+    rows.sort(
+        key=lambda row: max(
+            len(str(row.get("product_name") or "")),
+            len(str(row.get("customer_name") or "")),
+        ),
+        reverse=True,
+    )
+    ids = []
+    seen = set()
+    for row in rows:
+        product = str(row.get("product_name") or "").strip().lower()
+        customer = str(row.get("customer_name") or "").strip().lower()
+        matched = (
+            (len(product) >= 4 and product in question)
+            or (len(customer) >= 4 and customer in question)
+        )
         contract_id = normalize_contract_id(row.get("contract_id"))
-        if contract_id and contract_id not in seen:
+        if matched and contract_id and contract_id not in seen:
             seen.add(contract_id)
             ids.append(contract_id)
     return ids
+
+
+def hybrid_text_contract_ids(
+    structured_results,
+    query=None,
+    catalog=None,
+    corpus_size=None,
+    limit=HYBRID_TEXT_MAX_CONTRACTS,
+):
+    """
+    IDs allowed for hybrid text search.
+
+    Empty means skip text search — never search the whole catalog
+    for an aggregation or an unfiltered lookup.
+    """
+    ids = structured_contract_ids(structured_results)
+    if not ids:
+        ids = match_named_contracts(query, catalog)
+
+    if corpus_size is None and catalog is not None:
+        corpus_size = len(catalog)
+
+    if not ids:
+        return []
+    if corpus_size and len(ids) >= corpus_size:
+        return []
+    return ids[:limit]
 
 
 BI_ENCODER_MODEL = "all-MiniLM-L6-v2"
