@@ -1,4 +1,5 @@
 import json
+import os
 import time
 
 import pandas as pd
@@ -6,9 +7,9 @@ from dotenv import load_dotenv
 from openai import OpenAI
 
 from src.margin_checker.router import classify_query
-from src.margin_checker.retrieval import run_hybrid
+from src.margin_checker.retrieval import run_hybrid, get_cached_chunks
 from src.margin_checker.rerank import rerank_results
-from src.margin_checker.db import load_contract_chunks
+from src.margin_checker.sources import split_primary_secondary
 
 
 load_dotenv()
@@ -541,11 +542,17 @@ Return ONLY valid JSON:
     return evaluation, response.usage
 
 
-# --------------------------------------------------
-# Complete RAG pipeline
-# --------------------------------------------------
+def _use_llm_judge(with_judge):
+    if with_judge is not None:
+        return bool(with_judge)
+    return os.getenv("RAG_LLM_JUDGE", "0").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
 
-def rag(query):
+def rag(query, with_judge=None):
 
     start = time.perf_counter()
 
@@ -580,7 +587,7 @@ def rag(query):
 
     else:
 
-        documents = load_contract_chunks()
+        documents = get_cached_chunks()
 
         # --------------------------------------------------
         # Unstructured
@@ -649,7 +656,7 @@ def rag(query):
     total_cost += cost
 
     # --------------------------------------------------
-    # 4. LLM Judge
+    # 4. LLM Judge (optional — skipped in the UI for speed)
     # --------------------------------------------------
 
     if route == "structured":
@@ -667,17 +674,26 @@ def rag(query):
             + results["structured"]
         )
 
-    evaluation, eval_usage = evaluate_relevance(
-        query,
-        answer,
-        route,
-        judge_sources
-    )
+    if _use_llm_judge(with_judge):
 
-    total_prompt_tokens += eval_usage.prompt_tokens
-    total_completion_tokens += eval_usage.completion_tokens
-    total_tokens += eval_usage.total_tokens
-    total_cost += calculate_cost(eval_usage)
+        evaluation, eval_usage = evaluate_relevance(
+            query,
+            answer,
+            route,
+            judge_sources
+        )
+
+        total_prompt_tokens += eval_usage.prompt_tokens
+        total_completion_tokens += eval_usage.completion_tokens
+        total_tokens += eval_usage.total_tokens
+        total_cost += calculate_cost(eval_usage)
+
+    else:
+
+        evaluation = {
+            "relevance": "NOT_EVALUATED",
+            "explanation": "LLM judge skipped for faster interactive answers.",
+        }
 
     # --------------------------------------------------
     # 5. Response time
@@ -704,13 +720,20 @@ def rag(query):
             + results["structured"]
         )
 
+    primary_sources, secondary_sources = split_primary_secondary(
+        answer,
+        sources
+    )
+
     # --------------------------------------------------
     # 7. Return
     # --------------------------------------------------
 
     return {
         "answer": answer,
-        "sources": sources,
+        "sources": primary_sources + secondary_sources,
+        "primary_sources": primary_sources,
+        "secondary_sources": secondary_sources,
         "route": route,
 
         "response_time": response_time,

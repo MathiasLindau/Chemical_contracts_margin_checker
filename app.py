@@ -191,16 +191,10 @@ if result is not None:
     # Sources
     # --------------------------------------------------
 
-    st.subheader("Sources")
-
-    for i, source in enumerate(
-        result["sources"],
-        start=1
-    ):
+    def source_label(source, index):
 
         contract_id = source.get("contract_id")
 
-        # Text / hybrid source with RRF and optional reranker score
         if "score" in source and contract_id:
 
             parts = [f"RRF: {source['score']:.5f}"]
@@ -208,29 +202,37 @@ if result is not None:
             if reranker_score is not None:
                 parts.append(f"Reranker: {reranker_score:.4f}")
 
-            label = f"{contract_id} ({', '.join(parts)})"
+            return f"{contract_id} ({', '.join(parts)})"
 
-        # Structured source with contract ID
-        elif contract_id:
+        if contract_id:
+            return f"{contract_id} (structured)"
 
-            label = contract_id
+        return f"Structured Result {index}"
 
-        # Structured source without contract ID
-        else:
+    def render_sources(title, sources):
 
-            label = f"Structured Result {i}"
+        if not sources:
+            return
 
-        with st.expander(label):
+        st.subheader(title)
 
-            if "chunk_text" in source:
+        for i, source in enumerate(sources, start=1):
 
-                st.write(
-                    source["chunk_text"]
-                )
+            with st.expander(source_label(source, i)):
 
-            else:
+                if "chunk_text" in source:
+                    st.write(source["chunk_text"])
+                else:
+                    st.json(source)
 
-                st.json(source)
+    primary = result.get("primary_sources")
+    secondary = result.get("secondary_sources")
+
+    if primary is None and secondary is None:
+        render_sources("Sources", result["sources"])
+    else:
+        render_sources("Primary sources (used in the answer)", primary)
+        render_sources("Secondary sources (also retrieved)", secondary)
 
 
     # --------------------------------------------------

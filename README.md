@@ -471,8 +471,12 @@ chemical-contracts-margin-checker/
 │       ├── db.py
 │       ├── ingest.py
 │       ├── rag.py
+│       ├── rerank.py
 │       ├── retrieval.py
 │       └── router.py
+│
+├── tests/
+│   └── test_rerank.py
 │
 ├── pyproject.toml
 ├── uv.lock

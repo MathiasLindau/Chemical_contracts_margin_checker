@@ -13,35 +13,61 @@ def get_reranker():
     return _reranker
 
 
+def _as_score_list(raw_scores, expected):
+    if raw_scores is None:
+        return [None] * expected
+
+    if hasattr(raw_scores, "tolist"):
+        raw_scores = raw_scores.tolist()
+
+    if isinstance(raw_scores, (int, float)):
+        raw_scores = [float(raw_scores)]
+
+    scores = [float(score) for score in raw_scores]
+    if len(scores) != expected:
+        raise ValueError(
+            f"Reranker returned {len(scores)} scores for {expected} candidates."
+        )
+    return scores
+
+
 def rerank_results(query, candidates, top_k=3, reranker=None):
     """
     Reorder RRF candidates by Cross-Encoder(query, chunk) relevance.
 
     Preserves the original RRF value in ``score`` and adds
     ``reranker_score``. Returns the top_k documents.
+
+    If the reranker fails, RRF order is kept so the app still answers.
     """
 
     if not candidates:
         return []
 
-    encoder = reranker if reranker is not None else get_reranker()
-
     pairs = [
-        (query, candidate.get("chunk_text") or "")
+        [query, candidate.get("chunk_text") or ""]
         for candidate in candidates
     ]
 
-    raw_scores = encoder.predict(pairs)
+    try:
+        encoder = reranker if reranker is not None else get_reranker()
+        raw_scores = encoder.predict(pairs)
+        scores = _as_score_list(raw_scores, len(candidates))
+    except Exception:
+        scores = [None] * len(candidates)
 
     ranked = []
-    for candidate, raw_score in zip(candidates, raw_scores):
+    for candidate, score in zip(candidates, scores):
         item = dict(candidate)
-        item["reranker_score"] = float(raw_score)
+        item["reranker_score"] = score
         ranked.append(item)
 
     ranked.sort(
-        key=lambda item: item["reranker_score"],
-        reverse=True
+        key=lambda item: (
+            item["reranker_score"] is not None,
+            item["reranker_score"] if item["reranker_score"] is not None else 0.0,
+        ),
+        reverse=True,
     )
 
     return ranked[:top_k]

@@ -11,8 +11,8 @@ class FakeReranker:
         self.pairs = None
 
     def predict(self, pairs):
-        self.pairs = list(pairs)
-        return [self.scores_by_text[text] for _query, text in pairs]
+        self.pairs = [list(pair) for pair in pairs]
+        return [self.scores_by_text[pair[1]] for pair in self.pairs]
 
 
 class RerankResultsTest(unittest.TestCase):
@@ -98,7 +98,26 @@ class RerankResultsTest(unittest.TestCase):
             all(pair[0] == query for pair in self.reranker.pairs)
         )
 
-    def test_empty_candidates(self):
+    def test_reranker_failure_keeps_rrf_order(self):
+
+        class BrokenReranker:
+            def predict(self, pairs):
+                raise RuntimeError("model unavailable")
+
+        ranked = rerank_results(
+            "Which contract is cheapest?",
+            self.candidates,
+            top_k=3,
+            reranker=BrokenReranker(),
+        )
+
+        self.assertEqual(
+            [item["contract_id"] for item in ranked],
+            ["CON-2023-0006", "CON-2023-0048", "CON-2023-0031"],
+        )
+        self.assertTrue(
+            all(item["reranker_score"] is None for item in ranked)
+        )
         self.assertEqual(
             rerank_results("anything", [], top_k=3, reranker=self.reranker),
             [],
