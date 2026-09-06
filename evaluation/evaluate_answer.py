@@ -91,7 +91,7 @@ def generated_answer_for(item, live):
 
     from src.margin_checker.rag import rag
 
-    result = rag(item["question"])
+    result = rag(item["question"], with_judge=True)
     return result["answer"]
 
 

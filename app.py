@@ -191,44 +191,48 @@ if result is not None:
     # Sources
     # --------------------------------------------------
 
-    st.subheader("Sources")
-
-    for i, source in enumerate(
-        result["sources"],
-        start=1
-    ):
+    def source_label(source, index):
 
         contract_id = source.get("contract_id")
 
-        # Text / hybrid source with RRF score
         if "score" in source and contract_id:
 
-            label = (
-                f"{contract_id} "
-                f"(RRF: {source['score']:.5f})"
-            )
+            parts = [f"RRF: {source['score']:.5f}"]
+            reranker_score = source.get("reranker_score")
+            if reranker_score is not None:
+                parts.append(f"Reranker: {reranker_score:.4f}")
 
-        # Structured source with contract ID
-        elif contract_id:
+            return f"{contract_id} ({', '.join(parts)})"
 
-            label = contract_id
+        if contract_id:
+            return f"{contract_id} (structured)"
 
-        # Structured source without contract ID
-        else:
+        return f"Structured Result {index}"
 
-            label = f"Structured Result {i}"
+    def render_sources(title, sources):
 
-        with st.expander(label):
+        if not sources:
+            return
 
-            if "chunk_text" in source:
+        st.subheader(title)
 
-                st.write(
-                    source["chunk_text"]
-                )
+        for i, source in enumerate(sources, start=1):
 
-            else:
+            with st.expander(source_label(source, i)):
 
-                st.json(source)
+                if "chunk_text" in source:
+                    st.write(source["chunk_text"])
+                else:
+                    st.json(source)
+
+    primary = result.get("primary_sources")
+    secondary = result.get("secondary_sources")
+
+    if primary is None and secondary is None:
+        render_sources("Sources", result["sources"])
+    else:
+        render_sources("Primary sources (used in the answer)", primary)
+        render_sources("Secondary sources (also retrieved)", secondary)
 
 
     # --------------------------------------------------
