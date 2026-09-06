@@ -4,10 +4,14 @@ import streamlit as st
 
 from src.margin_checker.rag import rag
 from src.margin_checker.db import (
+    HISTORY_LIMIT,
     init_monitoring_table,
     save_query_log,
     save_feedback,
     load_query_history,
+    delete_query_log,
+    delete_all_query_logs,
+    format_created_at,
 )
 
 
@@ -53,7 +57,7 @@ st.write(
 
 try:
     init_monitoring_table()
-    history = load_query_history(limit=20)
+    history = load_query_history(limit=HISTORY_LIMIT)
 except Exception as exc:
     history = []
     st.warning(
@@ -63,14 +67,26 @@ except Exception as exc:
 
 if history:
 
-    with st.expander("Query History"):
+    with st.expander(f"Query History (last {len(history)})"):
+
+        if st.button("Clear history", key="clear_history"):
+            delete_all_query_logs()
+            st.rerun()
 
         for log_id, created_at, old_question, old_answer in history:
 
-            st.markdown(
-                f"**{created_at.strftime('%Y-%m-%d %H:%M')}**  \n"
-                f"{old_question}"
-            )
+            time_col, delete_col = st.columns([6, 1])
+
+            with time_col:
+                st.markdown(
+                    f"**{format_created_at(created_at)}**  \n"
+                    f"{old_question}"
+                )
+
+            with delete_col:
+                if st.button("Delete", key=f"delete_{log_id}"):
+                    delete_query_log(log_id)
+                    st.rerun()
 
             with st.expander("View answer"):
                 st.write(old_answer)

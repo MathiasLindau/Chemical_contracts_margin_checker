@@ -193,19 +193,33 @@ Current evaluation:
 
 Retrieval is evaluated independently using:
 
-- Hit@3
-- Full Hit@3
-- MRR@3
+- Hit@3 — at least one valid contract ID is in the top 3
+- Full Hit@3 — every valid ID is in the top 3
+- MRR@3 — how high the first correct ID sits
 
-Current evaluation results:
+Published results (`python evaluation/evaluate_retrieval.py`, 50 questions):
 
 | Method | Hit@3 | Full Hit@3 | MRR@3 |
 |---|---:|---:|---:|
 | Vector | 64.0% | 58.0% | 0.6167 |
 | BM25 | 72.0% | 66.0% | 0.7067 |
-| Hybrid | 72.0% | 66.0% | 0.6600 |
+| Hybrid (RRF@3) | 72.0% | 66.0% | 0.6600 |
 
-On the current evaluation dataset, BM25 performs strongly because many contract questions depend on exact contractual terminology. Hybrid retrieval combines both retrieval signals.
+BM25 is the strongest of these three on this set. Many questions use the same wording as the contracts, so lexical match wins. Hybrid RRF matches BM25 on Hit@3 but loses on MRR@3: the weaker vector list sometimes pushes the right contract down. **There is no strong need to tune RRF first.** It is already doing its job as a *candidate pool* (top 10) for the Cross-Encoder, not as the final ranking.
+
+### Measuring the reranker
+
+The table above does **not** include the Cross-Encoder. The live app does: RRF top 10 → Cross-Encoder top 3.
+
+The same script now reports a fourth row, **RERANK (RRF@10 + Cross-Encoder@3)**, with the same Hit@3 / Full Hit@3 / MRR@3 on `valid_contract_ids`. That is the right way to measure the reranker: keep the gold IDs, change only the ranking stage, compare to RRF@3.
+
+Run it after ingest (loads `cross-encoder/ms-marco-MiniLM-L6-v2` on the first question):
+
+```bash
+python evaluation/evaluate_retrieval.py
+```
+
+If rerank Beat@3 / MRR@3 is close to BM25, the Cross-Encoder is recovering the RRF drop. If it is worse, the next lever is chunking or the hybrid ID filter, not RRF weights.
 
 ---
 
@@ -221,7 +235,7 @@ Structured questions use deterministic contract data and are classified as:
 - PARTLY_CORRECT
 - INCORRECT
 
-Current result:
+Current result (stored dataset answers):
 
 **20 / 20 correct — 100%**
 
@@ -233,7 +247,7 @@ Unstructured answers are evaluated against contractual evidence:
 - PARTLY_RELEVANT
 - NOT_RELEVANT
 
-Current result:
+Current result (stored dataset answers):
 
 **14 / 14 relevant — 100%**
 
@@ -241,11 +255,13 @@ Current result:
 
 Hybrid answers are evaluated against both structured values and contractual evidence.
 
-Current result:
+Current result (stored dataset answers):
 
-- **14 / 16 relevant — 87.5%**
-- **2 / 16 partly relevant — 12.5%**
+- **16 / 16 relevant — 100%**
+- **0 / 16 partly relevant**
 - **0 / 16 not relevant**
+
+These numbers come from `python evaluation/evaluate_answer.py` (no `--live`). That judges the answers already stored in `evaluation/evaluation_dataset.json`. It is a check of the eval set, not of the running app. Use `--live` or the Streamlit UI for the pipeline.
 
 The evaluation separates routing, retrieval and generation errors so that each stage can be analyzed independently.
 
@@ -314,7 +330,8 @@ The application provides:
 - token usage
 - estimated API cost
 - answer-quality feedback
-- query history
+- query history (last 10, with delete / clear)
+- timestamps in `Europe/Berlin` (set `DISPLAY_TZ` to change)
 
 Example application flow:
 
@@ -495,6 +512,7 @@ chemical-contracts-margin-checker/
 │       └── sources.py
 │
 ├── tests/
+│   ├── test_history_and_eval.py
 │   ├── test_hybrid_restrict.py
 │   ├── test_rerank.py
 │   └── test_sources.py
@@ -560,7 +578,9 @@ For each answer, confirm:
 - the LLM judge label is stored (and shown) unless `RAG_LLM_JUDGE=0`
 - response time, tokens, and cost are shown
 - thumbs-up/down feedback can be saved
-- the question appears in **Query History** after refresh
+- the question appears in **Query History** (last 10) after refresh
+- history times match local Berlin time (or `DISPLAY_TZ`)
+- Delete removes one row; Clear history removes all logs
 
 Then open http://localhost:3000 and confirm the Query Monitoring dashboard loads against Postgres.
 
@@ -620,15 +640,19 @@ Routing, retrieval and answer generation are evaluated independently. This makes
 
 ## Limitations
 
-The current evaluation dataset is relatively small, so individual questions can have a noticeable impact on the reported metrics.
+The evaluation dataset is small (50 questions), so a few items move the percentages a lot.
 
-Retrieval is still an important area for improvement. BM25 currently performs strongly on the evaluation dataset, while hybrid retrieval combines lexical and semantic retrieval signals.
+**Retrieval.** BM25 already beats Hybrid RRF on MRR@3. RRF is still useful as a top-10 pool for the Cross-Encoder; retuning fusion weights is not the first fix. The published retrieval table is Vector / BM25 / RRF only until you run the new rerank row. Hybrid ID-filtering is in the live app but not in that retrieval script (the script still searches the full corpus so methods stay comparable).
 
-The contracts are synthetic rather than real-world commercial contracts. They are designed to be realistic for prototyping and evaluation, but they should not be interpreted as legal or commercial advice.
+**Reranker.** Identical strongly negative Cross-Encoder scores on secondary chunks are common: contracts share clause templates, so `(question, chunk)` looks equally weakly related. The cheap contract often comes from CSV, not those text hits.
 
-If structured hybrid retrieval returns no `contract_id` (averages, sums, counts), text search still uses the full corpus.
+**Speed.** The first question after a restart loads the bi-encoder and Cross-Encoder. Later questions reuse them, BM25, and cached chunks. `RAG_LLM_JUDGE=1` adds a second OpenAI call on every answer.
 
-The future market-data integration is a planned extension and is not yet part of the current margin calculation pipeline.
+**Robustness.** The split (router, retrieval, rerank, sources, db) is small enough to follow. Weak spots: `rag.py` is still the long orchestration file; retrieval eval duplicated search instead of calling production code (rerank row now uses production `run_hybrid` + `rerank_results`); Docker Postgres must be up or Streamlit shows a warning; no auth; structured `lookup` can return the whole CSV; hybrid aggregations with no `contract_id` search all contracts.
+
+The contracts are synthetic. They are realistic for a prototype, not legal or commercial advice.
+
+The future market-data integration is not part of the current pipeline.
 
 ---
 
@@ -640,12 +664,11 @@ Potential next steps include:
 2. Calculate dynamic contract margins from daily market inputs.
 3. Improve structured query handling and calculations.
 4. Experiment with retrieval parameters and chunking strategies.
-5. Include the Cross-Encoder in retrieval evaluation.
-6. Expand the evaluation dataset.
-7. Add more difficult multi-hop questions.
-8. Improve monitoring and alerting.
-9. Add supply-chain risk and opportunity scoring.
-10. Develop a production-ready user interface.
+5. Expand the evaluation dataset.
+6. Add more difficult multi-hop questions.
+7. Improve monitoring and alerting.
+8. Add supply-chain risk and opportunity scoring.
+9. Develop a production-ready user interface.
 
 ---
 
