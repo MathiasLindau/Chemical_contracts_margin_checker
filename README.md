@@ -172,13 +172,17 @@ A Hugging Face warning about `HF_TOKEN` is harmless for this demo.
 
 The router is an LLM. 90% vs an older 94% on the same 50 questions is normal variation, not a broken app.
 
-### 2. Retrieval — full catalog (your latest run)
+### 2. Retrieval
 
-This table searches **all 100 contracts** for every question. It answers: “If we only had text search, would the gold ID appear in the top 3?”
+Hit@3 = at least one gold contract ID in the top 3.  
+Full Hit@3 = **every** gold ID (needed when a question compares two contracts).  
+MRR@3 = how high the first gold ID sits.
 
-That is the right test for **unstructured**. It is **harder than the live hybrid route**, because hybrid in Streamlit does CSV first.
+#### A) Full catalog (all 100 contracts)
 
-Measured after ingesting 784 chunks:
+“If we only had text search, would the gold ID appear in the top 3?”
+
+This is the right test for **unstructured**. It is **harder than live hybrid**, because Streamlit hybrid does CSV first.
 
 | Method | Hit@3 | Full Hit@3 | MRR@3 |
 |---|---:|---:|---:|
@@ -187,26 +191,40 @@ Measured after ingesting 784 chunks:
 | Hybrid search (RRF@3) | **62.0%** | **48.0%** | **0.5633** |
 | Rerank (RRF@10 + Cross-Encoder@3) | 38.0% | 36.0% | 0.3400 |
 
-Hit@3 = at least one gold contract ID in the top 3. Full Hit@3 = every gold ID (important for two-contract questions). MRR@3 = how high the first gold ID sits.
+With 100 files this is noisier than the old 50-file table. **RRF is the best full-catalog method.** The Cross-Encoder (web-search model) **hurts** full-catalog ranking.
 
-**How to read this**
+By question type (same full catalog):
 
-With 100 files, full-catalog search is noisier than the old 50-file table (Vector used to be 64%, BM25 72%). That is expected.
+| Subset | Best full-catalog method | Hit@3 | Full Hit@3 |
+|---|---|---:|---:|
+| Unstructured (14) | RRF | 35.7% | 35.7% |
+| Hybrid questions (16) | BM25 or RRF | 50.0% | 6.2% (RRF) / 18.8% (BM25) |
 
-On this set, **RRF beats Vector and BM25**. The **Cross-Encoder made full-catalog ranking worse** (38% Hit@3). It was trained on web search, not chemical clauses. Many chunks still look alike, so it can promote the wrong contract.
+Hybrid **Full Hit@3** is low because those questions have **two** gold IDs. Finding one cheap contract is not enough; the second ID is often missing from a top-3 over 100 files.
 
-**That does not mean Streamlit hybrid is broken.** Example:
+#### B) Gold-ID text search (live hybrid text step)
+
+Chunks are taken **only** from `valid_contract_ids` in the eval file. That is Streamlit hybrid **after** CSV already found the deals.
+
+| | Hit@3 | Full Hit@3 | MRR@3 |
+|---|---:|---:|---:|
+| All 50 questions | 100.0% | 96.0% | 1.0000 |
+| Unstructured (14) | 100.0% | 100.0% | 1.0000 |
+| Hybrid questions (16) | 100.0% | 87.5% | 1.0000 |
+
+**Hit@3 = 100% is expected**, not a miracle. If you only search contract 0007, every chunk is 0007, so the gold ID cannot be missed. This row **proves the restrict works**: once step 1 has the IDs, text search stays inside that deal.
+
+The useful leftover is **Full Hit@3 = 87.5%** on hybrid questions: two IDs, top 3 chunks sometimes all come from one of the two contracts. Ranking inside a tiny ID set is the remaining text issue, not “searching the whole catalog.”
 
 ```text
-EVAL SCRIPT (full catalog)          LIVE HYBRID ROUTE
-Search 784 chunks for               Step 1 CSV: cheapest = 0007
-"payment terms"                     Step 2 search ~8 chunks of 0007
-May miss CON-2023-0007              Payment terms are in those 8 chunks
+A) Full catalog                         B) Gold IDs only (live hybrid text)
+Search 784 chunks                       Search ~8–16 chunks of the CSV hits
+RRF Hit@3 62% overall                   Hit@3 100% (IDs are the filter)
+Unstructured RRF 36%                    Hybrid Full Hit@3 87.5%
+Cross-Encoder 38%  (worse)              = Streamlit hybrid after CSV
 ```
 
-`evaluate_retrieval.py` now also prints **RERANK on gold contract IDs only**. That row is the text step of live hybrid **when CSV already found the right IDs**. Re-run the script to fill it; it is not in the table above because it was added after this run.
-
-Unstructured in Streamlit still uses full-catalog RRF + Cross-Encoder. If that path looks weak in the UI, the next lever is chunking or dropping the Cross-Encoder for unstructured, not “restrict unstructured to CSV” (there is no CSV step).
+Unstructured in the UI still uses full-catalog RRF + Cross-Encoder (no CSV step). If that path looks weak, next lever is chunking or skipping the Cross-Encoder **for unstructured**, not restricting unstructured to CSV.
 
 ### 3. Answers — stored dataset
 
@@ -245,8 +263,8 @@ After each answer the app can ask the model: “Is this relevant?” That second
 
 - **Foundation only.** No market API, no live margin yet.
 - **Eval set is 50 questions** on contracts `0001`–`0050`, not on `0051`–`0100`.
-- **Full-catalog retrieval got harder** with 100 contracts. Live **hybrid** still restricts text to CSV IDs.
-- **Cross-Encoder hurt** the full-catalog Hit@3 on this run. Keep it as a candidate ranker; do not treat 38% as the hybrid-route score.
+- **Full-catalog retrieval got harder** with 100 contracts (RRF Hit@3 62%; unstructured only 36%). Live **hybrid** still restricts text to CSV IDs (gold-ID Hit@3 100%, hybrid Full Hit@3 87.5%).
+- **Cross-Encoder hurt** full-catalog Hit@3 (38%). Do not treat that as the hybrid-route score. Gold-ID Hit@3 of 100% only means the ID filter worked.
 - **Router ~90%.** Some questions are labelled hybrid/unstructured in a fuzzy way.
 - **Synthetic contracts.** Not legal advice.
 - **Docker / Postgres** needed for vectors. No login.
