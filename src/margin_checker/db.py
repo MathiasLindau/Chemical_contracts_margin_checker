@@ -1,12 +1,17 @@
 # src/margin_checker/db.py
 
 import os
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
+
 import psycopg
 from dotenv import load_dotenv
 
 load_dotenv()
 
 DB_CONN = os.getenv("DB_CONN")
+HISTORY_LIMIT = 10
+DEFAULT_DISPLAY_TZ = "Europe/Berlin"
 
 
 def connect():
@@ -15,6 +20,29 @@ def connect():
             "DB_CONN is not set. Copy .env.example to .env and configure it."
         )
     return psycopg.connect(DB_CONN)
+
+
+def display_timezone():
+    name = (
+        os.getenv("DISPLAY_TZ")
+        or os.getenv("TZ")
+        or DEFAULT_DISPLAY_TZ
+    )
+    try:
+        return ZoneInfo(name)
+    except Exception:
+        return ZoneInfo(DEFAULT_DISPLAY_TZ)
+
+
+def format_created_at(created_at):
+    """Format a query_logs timestamp in the local display timezone."""
+    if created_at is None:
+        return ""
+    if isinstance(created_at, str):
+        created_at = datetime.fromisoformat(created_at)
+    if created_at.tzinfo is None:
+        created_at = created_at.replace(tzinfo=timezone.utc)
+    return created_at.astimezone(display_timezone()).strftime("%Y-%m-%d %H:%M")
 
 
 # --------------------------------------------------
@@ -53,7 +81,7 @@ def init_monitoring_table():
             """
             CREATE TABLE IF NOT EXISTS query_logs (
                 id SERIAL PRIMARY KEY,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
                 question TEXT NOT NULL,
                 answer TEXT,
                 route TEXT,
@@ -68,6 +96,22 @@ def init_monitoring_table():
             )
             """
         )
+        column_type = conn.execute(
+            """
+            SELECT data_type
+            FROM information_schema.columns
+            WHERE table_name = 'query_logs'
+              AND column_name = 'created_at'
+            """
+        ).fetchone()
+        if column_type and column_type[0] == "timestamp without time zone":
+            conn.execute(
+                """
+                ALTER TABLE query_logs
+                ALTER COLUMN created_at TYPE TIMESTAMPTZ
+                USING created_at AT TIME ZONE 'UTC'
+                """
+            )
         conn.commit()
 
 
@@ -154,7 +198,7 @@ def save_feedback(log_id, feedback):
 # Query history
 # --------------------------------------------------
 
-def load_query_history(limit=20):
+def load_query_history(limit=HISTORY_LIMIT):
     """Load recent questions and answers."""
 
     with connect() as conn:
@@ -170,6 +214,25 @@ def load_query_history(limit=20):
         ).fetchall()
 
     return rows
+
+
+def delete_query_log(log_id):
+    """Delete one history row."""
+
+    with connect() as conn:
+        conn.execute(
+            "DELETE FROM query_logs WHERE id = %s",
+            (log_id,)
+        )
+        conn.commit()
+
+
+def delete_all_query_logs():
+    """Delete the visible query history."""
+
+    with connect() as conn:
+        conn.execute("DELETE FROM query_logs")
+        conn.commit()
 
 
 # --------------------------------------------------
