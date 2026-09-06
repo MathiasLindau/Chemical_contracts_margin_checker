@@ -4,6 +4,7 @@ import streamlit as st
 
 from src.margin_checker.rag import rag
 from src.margin_checker.db import (
+    init_monitoring_table,
     save_query_log,
     save_feedback,
     load_query_history,
@@ -50,7 +51,15 @@ st.write(
 # History
 # --------------------------------------------------
 
-history = load_query_history(limit=20)
+try:
+    init_monitoring_table()
+    history = load_query_history(limit=20)
+except Exception as exc:
+    history = []
+    st.warning(
+        "Database is not ready yet. Start Postgres and check DB_CONN. "
+        f"({exc})"
+    )
 
 if history:
 

@@ -1,10 +1,9 @@
 # src/margin_checker/retrieval.py
 
-import psycopg
 from minsearch import Index
 from sentence_transformers import SentenceTransformer
 
-from src.margin_checker.db import load_contract_chunks, DB_CONN
+from src.margin_checker.db import load_contract_chunks, connect
 
 
 model = SentenceTransformer("all-MiniLM-L6-v2")
@@ -53,7 +52,7 @@ def run_vector(query, num_results=3):
     query_vector = model.encode(query)
     vector = vec_to_str(query_vector)
 
-    with psycopg.connect(DB_CONN) as conn:
+    with connect() as conn:
 
         rows = conn.execute(
             """

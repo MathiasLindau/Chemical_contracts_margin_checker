@@ -1,4 +1,7 @@
 import json
+import os
+from pathlib import Path
+
 import psycopg
 from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer
@@ -7,7 +10,11 @@ from minsearch import Index
 load_dotenv()
 
 model = SentenceTransformer("all-MiniLM-L6-v2")
-DB_CONN = "postgresql://postgres:password@localhost:5432/contracts_db"
+DB_CONN = os.getenv(
+    "DB_CONN",
+    "postgresql://postgres:password@localhost:5432/contracts_db",
+)
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def vec_to_str(v):
@@ -78,7 +85,7 @@ def evaluate():
     )
     index.fit(docs)
 
-    with open("evaluation/evaluation_questions.json", encoding="utf-8") as f:
+    with open(ROOT / "evaluation" / "evaluation_questions.json", encoding="utf-8") as f:
         tests = json.load(f)
 
     metrics = {

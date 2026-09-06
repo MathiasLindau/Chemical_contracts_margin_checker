@@ -4,9 +4,9 @@ services:
     image: pgvector/pgvector:pg16
     container_name: app_postgres
     environment:
-      POSTGRES_DB: contracts_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
+      POSTGRES_DB: ${POSTGRES_DB:-contracts_db}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
     ports:
       - "5432:5432"
     volumes:
@@ -29,6 +29,10 @@ services:
       - "8502:8501"
     env_file:
       - .env
+    environment:
+      # Always use the Compose service name inside the app container,
+      # even if .env points at localhost for local scripts.
+      DB_CONN: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@app_postgres:5432/${POSTGRES_DB:-contracts_db}
     depends_on:
       - app_postgres
     volumes:

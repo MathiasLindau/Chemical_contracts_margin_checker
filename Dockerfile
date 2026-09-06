@@ -17,8 +17,11 @@ RUN pip install --no-cache-dir \
     psycopg[binary] \
     python-dotenv \
     minsearch \
-    sentence-transformers
+    sentence-transformers \
+    tqdm
+
+RUN chmod +x docker-entrypoint.sh
 
 EXPOSE 8501
 
-CMD ["streamlit", "run", "app.py", "--server.address=0.0.0.0"]
+CMD ["./docker-entrypoint.sh"]

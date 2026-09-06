@@ -10,7 +10,7 @@ from tqdm.auto import tqdm
 
 model = SentenceTransformer("all-MiniLM-L6-v2")
 
-DB_CONN = os.getenv("DB_CONN")
+from src.margin_checker.db import DB_CONN
 
 def init_db():
     """Initialisiert die Datenbank mit pgvector (384 Dimensionen für MiniLM)."""
