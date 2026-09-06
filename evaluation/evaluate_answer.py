@@ -1,6 +1,13 @@
+import argparse
 import json
+import sys
+from pathlib import Path
+
 from dotenv import load_dotenv
 from openai import OpenAI
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
 
 load_dotenv()
 client = OpenAI()
@@ -78,9 +85,19 @@ Return JSON:
     return json.loads(r.choices[0].message.content)
 
 
-def evaluate():
+def generated_answer_for(item, live):
+    if not live:
+        return item["answer"]
 
-    with open("evaluation/evaluation_dataset.json", encoding="utf-8") as f:
+    from src.margin_checker.rag import rag
+
+    result = rag(item["question"])
+    return result["answer"]
+
+
+def evaluate(live=False):
+
+    with open(ROOT / "evaluation" / "evaluation_dataset.json", encoding="utf-8") as f:
         tests = json.load(f)
 
     results = {
@@ -108,10 +125,12 @@ def evaluate():
                 "evidence": item["evidence"]
             }
 
+        generated = generated_answer_for(item, live=live)
+
         evaluation = evaluate_answer(
             item["question"],
             reference,
-            item["answer"],
+            generated,
             route
         )
 
@@ -124,7 +143,7 @@ def evaluate():
         )
 
     print("\n" + "=" * 55)
-    print("ANSWER EVALUATION")
+    print("ANSWER EVALUATION" + (" (LIVE RAG)" if live else " (STORED ANSWERS)"))
     print("=" * 55)
 
     for route, evaluations in results.items():
@@ -152,4 +171,13 @@ def evaluate():
 
 
 if __name__ == "__main__":
-    evaluate()
+    parser = argparse.ArgumentParser(
+        description="Evaluate stored dataset answers or the live RAG pipeline."
+    )
+    parser.add_argument(
+        "--live",
+        action="store_true",
+        help="Run the live RAG pipeline for each question instead of judging stored answers.",
+    )
+    args = parser.parse_args()
+    evaluate(live=args.live)

@@ -9,6 +9,14 @@ load_dotenv()
 DB_CONN = os.getenv("DB_CONN")
 
 
+def connect():
+    if not DB_CONN:
+        raise RuntimeError(
+            "DB_CONN is not set. Copy .env.example to .env and configure it."
+        )
+    return psycopg.connect(DB_CONN)
+
+
 # --------------------------------------------------
 # Contract data
 # --------------------------------------------------
@@ -16,7 +24,7 @@ DB_CONN = os.getenv("DB_CONN")
 def load_contract_chunks():
     """Load contract chunks from PostgreSQL."""
 
-    with psycopg.connect(DB_CONN) as conn:
+    with connect() as conn:
         rows = conn.execute(
             """
             SELECT contract_id, chunk_text
@@ -40,7 +48,7 @@ def load_contract_chunks():
 def init_monitoring_table():
     """Create the query log table if it does not exist."""
 
-    with psycopg.connect(DB_CONN) as conn:
+    with connect() as conn:
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS query_logs (
@@ -81,7 +89,7 @@ def save_query_log(
 ):
     """Save one RAG request for monitoring."""
 
-    with psycopg.connect(DB_CONN) as conn:
+    with connect() as conn:
 
         row = conn.execute(
             """
@@ -128,7 +136,7 @@ def save_query_log(
 def save_feedback(log_id, feedback):
     """Save user feedback for a query."""
 
-    with psycopg.connect(DB_CONN) as conn:
+    with connect() as conn:
 
         conn.execute(
             """
@@ -149,7 +157,7 @@ def save_feedback(log_id, feedback):
 def load_query_history(limit=20):
     """Load recent questions and answers."""
 
-    with psycopg.connect(DB_CONN) as conn:
+    with connect() as conn:
 
         rows = conn.execute(
             """

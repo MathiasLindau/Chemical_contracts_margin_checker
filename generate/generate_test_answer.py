@@ -1,6 +1,8 @@
 import os
 import json
 import glob
+from pathlib import Path
+
 import pandas as pd
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -8,8 +10,9 @@ from openai import OpenAI
 load_dotenv()
 client = OpenAI()
 
-CSV_PATH = "data/chemical_contracts.csv"
-MD_PATH = "data/contracts"
+ROOT = Path(__file__).resolve().parents[1]
+CSV_PATH = ROOT / "data" / "chemical_contracts.csv"
+MD_PATH = ROOT / "data" / "contracts"
 
 
 def ask(prompt):
@@ -34,7 +37,7 @@ def load_docs():
     return {
         os.path.splitext(os.path.basename(p))[0]:
         open(p, encoding="utf-8").read()
-        for p in glob.glob(f"{MD_PATH}/*.md")
+        for p in glob.glob(str(MD_PATH / "*.md"))
     }
 
 
@@ -43,7 +46,7 @@ def generate_answers():
     df = pd.read_csv(CSV_PATH)
     docs = load_docs()
 
-    with open("evaluation_questions.json", encoding="utf-8") as f:
+    with open(ROOT / "evaluation" / "evaluation_questions.json", encoding="utf-8") as f:
         dataset = json.load(f)
 
     for i, item in enumerate(dataset, 1):
@@ -190,7 +193,7 @@ Return JSON:
     # ================================================================
     # SAVE
     # ================================================================
-    with open("evaluation/evaluation_dataset.json", "w", encoding="utf-8") as f:
+    with open(ROOT / "evaluation" / "evaluation_dataset.json", "w", encoding="utf-8") as f:
         json.dump(
             dataset,
             f,

@@ -283,7 +283,7 @@ Structured questions are tied to specific CSV fields and use deterministic groun
 
 The project also includes evaluation questions with supporting evidence.
 
-One dataset consistency issue should be cleaned before treating the benchmark as final: one Titanium Carbonate hybrid case contains an evidence calculation of `700 + 14 + 35 = 749`, while the recorded answer states `735`.
+Hybrid adder calculations in the evaluation dataset were checked against the CSV. Totals are `base_price * (1 + energy_adder_percentage/100 + raw_material_adder_percentage/100)`.
 
 ---
 
@@ -435,6 +435,7 @@ chemical-contracts-margin-checker/
 ├── app.py
 ├── Dockerfile
 ├── docker-compose.yml
+├── docker-entrypoint.sh
 ├── run.sh
 │
 ├── data/
@@ -467,6 +468,7 @@ chemical-contracts-margin-checker/
 │
 ├── pyproject.toml
 ├── uv.lock
+├── .env.example
 └── README.md
 ```
 
@@ -476,26 +478,23 @@ chemical-contracts-margin-checker/
 
 ### 1. Configure environment variables
 
-Create a `.env` file containing the required configuration.
+Copy the example file and add your OpenAI key:
 
-For example:
-
-```env
-POSTGRES_DB=contracts_db
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=your_password
-POSTGRES_HOST=app_postgres
-DB_CONN=postgresql://postgres:your_password@app_postgres:5432/contracts_db
-OPENAI_API_KEY=your_api_key
+```bash
+cp .env.example .env
 ```
 
-Do not commit `.env` to GitHub.
+The example values match `docker-compose.yml` (`password` for Postgres). Do not commit `.env` to GitHub.
+
+`.env` can use `localhost` for local scripts. Docker Compose overrides `DB_CONN` inside the app container so it still reaches the `app_postgres` service.
 
 ### 2. Start the application
 
 ```bash
 docker compose up --build
 ```
+
+The first start waits for Postgres, creates the monitoring table, and ingests contract chunks (this downloads the embedding model and can take a few minutes). Later starts reuse the existing `pgdata` volume.
 
 The Streamlit application is exposed on:
 
@@ -509,33 +508,50 @@ Grafana is exposed on:
 http://localhost:3000
 ```
 
-### 3. Ingest contract data
+### 3. How to test this version
 
-The ingestion module loads contract chunks and creates embeddings in PostgreSQL / pgvector.
+**Manual UI checks** (use the demo questions below):
+
+1. Open http://localhost:8502
+2. Ask a **structured** question: `Which contract has the lowest price?`
+3. Ask an **unstructured** question: `What happens if the supplier fails to deliver the agreed quantity?`
+4. Ask a **hybrid** question: `Which contract has the lowest price and what are its payment terms?`
+
+For each answer, confirm:
+
+- the **Route** metric matches the intended route
+- **Sources** show contract IDs (and RRF scores for text/hybrid)
+- response time, tokens, and cost are shown
+- thumbs-up/down feedback can be saved
+- the question appears in **Query History** after refresh
+
+**Automated evaluations** (need `.env` with `OPENAI_API_KEY` and `DB_CONN` pointing at reachable Postgres):
 
 ```bash
-python -m src.margin_checker.ingest
-```
-
-### 4. Run evaluations
-
-Route evaluation:
-
-```bash
+# Route classification using the production router
 python evaluation/evaluate_route.py
-```
 
-Retrieval evaluation:
-
-```bash
+# Retrieval quality (Postgres must already contain ingested chunks)
 python evaluation/evaluate_retrieval.py
+
+# Judge stored dataset answers (does not call the live RAG pipeline)
+python evaluation/evaluate_answer.py
+
+# Judge live RAG answers against the dataset evidence
+python evaluation/evaluate_answer.py --live
 ```
 
-Answer evaluation:
+Without `--live`, answer evaluation scores the answers already stored in `evaluation/evaluation_dataset.json`. That is useful for dataset quality, but it is **not** a test of the running app. Use `--live` or the Streamlit UI to test this version of the pipeline.
+
+### 4. Local run without Docker (optional)
 
 ```bash
-python evaluation/evaluate_answer.py
+uv sync
+uv run python -m src.margin_checker.ingest
+uv run streamlit run app.py
 ```
+
+Postgres with pgvector must already be running, and `DB_CONN` must use `localhost`.
 
 ---
 
