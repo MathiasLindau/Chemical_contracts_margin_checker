@@ -53,6 +53,7 @@ services:
       DISPLAY_TZ: ${DISPLAY_TZ:-Europe/Berlin}
     depends_on:
       - app_postgres
+          condition: service_healthy
     volumes:
       - .:/app
 
