@@ -8,5 +8,8 @@ __pycache__/
 # Environment variables
 .env
 
+# Generated LLM prompt comparison (run evaluation/evaluate_llm.py locally)
+evaluation/llm_prompt_comparison.json
+
 # macOS
 .DS_Store
