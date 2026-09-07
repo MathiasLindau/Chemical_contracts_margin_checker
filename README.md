@@ -106,6 +106,7 @@ These are **not** real legal documents.
 
 ```bash
 cp .env.example .env
+pip install -r requirements.txt
 # put your OpenAI key in .env
 # keep RAG_LLM_JUDGE=1, TZ=Europe/Berlin, DISPLAY_TZ=Europe/Berlin
 
