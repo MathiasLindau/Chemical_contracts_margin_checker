@@ -24,7 +24,10 @@ flowchart LR
 
 This README is about **today**: a small RAG app on **100 synthetic** chemical contracts.
 
----
+
+<img width="700" height="400" alt="Bildschirmfoto 2026-09-07 um 13 40 05" src="https://github.com/user-attachments/assets/b1f5108b-a8f1-43e8-b26d-5c7a762c9f9f" />
+
+
 
 ## What you can ask today
 
@@ -123,7 +126,7 @@ Local ingest (if you run Streamlit without rebuilding Compose):
 python -m src.margin_checker.ingest
 ```
 
-You want **784** rows in `contract_chunks`, not 300.
+You want **784** rows in `contract_chunks`
 
 Do **not** run `generate/generate_contracts.py` unless you intend to rebuild the files. Do **not** regenerate eval questions unless you also re-check hybrid adder math.
 
@@ -251,6 +254,11 @@ Compose loads a dashboard from the repo (`grafana/dashboards/query-monitoring.js
 
 Logged fields: question, answer, route, time, tokens, cost, judge label, feedback.
 
+
+<img width="500" height="250" alt="Bildschirmfoto 2026-09-07 um 13 54 41" src="https://github.com/user-attachments/assets/48577e1b-0ccd-43e7-bf23-7b3144e74c0f" />
+
+
+<img width="500" height="250" alt="Bildschirmfoto 2026-09-07 um 13 54 32" src="https://github.com/user-attachments/assets/d782015d-37d3-4463-8fb6-1dd8c260912b" />
 ---
 
 ## LLM judge
