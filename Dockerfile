@@ -2,23 +2,15 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-COPY . .
+COPY requirements.txt .
 
-# CPU-only PyTorch
+# CPU-only PyTorch, then the pinned app dependencies.
 RUN pip install --no-cache-dir \
     --index-url https://download.pytorch.org/whl/cpu \
-    torch
+    torch \
+ && pip install --no-cache-dir -r requirements.txt
 
-# Application dependencies
-RUN pip install --no-cache-dir \
-    streamlit \
-    openai \
-    pandas \
-    psycopg[binary] \
-    python-dotenv \
-    minsearch \
-    sentence-transformers \
-    tqdm
+COPY . .
 
 RUN chmod +x docker-entrypoint.sh
 

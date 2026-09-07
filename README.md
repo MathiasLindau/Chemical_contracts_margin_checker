@@ -104,7 +104,12 @@ These are **not** real legal documents.
 ```bash
 cp .env.example .env
 # put your OpenAI key in .env
-# keep RAG_LLM_JUDGE=1, TZ=Europe/Berlin, DISPLAY_TZ=Europe/Berlin
+# keep RAG_LLM_JUDGE=1, RAG_ANSWER_PROMPT=concise
+# TZ=Europe/Berlin, DISPLAY_TZ=Europe/Berlin
+
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 
 docker compose up --build
 ```
@@ -142,6 +147,30 @@ Do **not** run `generate/generate_contracts.py` unless you intend to rebuild the
 
 The first question after a restart is slow. That is the Cross-Encoder loading.
 
+### Screenshots (for reviewers)
+
+GitHub **does** accept pictures in the README. Two safe ways:
+
+**A) GitHub website (simplest)**  
+Open the README on github.com → pencil → drag a PNG/JPG into the editor (or paste from the clipboard). GitHub uploads the file and inserts:
+
+```markdown
+![Streamlit UI](https://github.com/user-attachments/assets/....)
+```
+
+That does **not** break formatting if each image is on its own line, with a blank line before and after. Do not drop images inside a table. A normal window screenshot is fine; avoid 10 MB files.
+
+**B) From VS Code**  
+Save files, then link them with a relative path (paste into the `.md` file does **not** embed the image):
+
+```markdown
+![Streamlit](docs/screenshots/streamlit.png)
+![Grafana](docs/screenshots/grafana.png)
+![Hybrid answer](docs/screenshots/hybrid-answer.png)
+```
+
+Useful shots: (1) Streamlit with a hybrid answer and sources, (2) history + thumbs, (3) Grafana Query Monitoring. Streamlit can also record a short clip from the **⋮** menu at the top right; drop the `.mp4` into the GitHub web editor the same way.
+
 ---
 
 ## Evaluation
@@ -151,7 +180,8 @@ We test **three stages**, not one score.
 ```text
 1. Did we pick the right route?     evaluate_route.py
 2. Did text search find the IDs?    evaluate_retrieval.py
-3. Is the answer good?              evaluate_answer.py
+3. Is the stored gold answer consistent?  evaluate_answer.py
+4. Which generation prompt is better?     evaluate_llm.py
 ```
 
 Commands (no comments on the same line — zsh will break):
@@ -160,6 +190,7 @@ Commands (no comments on the same line — zsh will break):
 python evaluation/evaluate_route.py
 python evaluation/evaluate_retrieval.py
 python evaluation/evaluate_answer.py
+python evaluation/evaluate_llm.py
 ```
 
 `--live` on answer eval runs the real RAG for every question. It is slow and costs extra OpenAI calls. Skip it if you already checked Streamlit.
@@ -243,6 +274,42 @@ Structured gold answers come from the CSV. Hybrid gold answers were LLM-extracte
 
 You do **not** need to regenerate questions. New questions would not break the app, but hybrid math would need another CSV check.
 
+### 4. LLM output — two prompts (course “LLM evaluation”)
+
+`evaluate_answer.py` without `--live` only checks that the **JSON file** is consistent. The course also wants **two generation approaches**, then you **keep the winner**.
+
+We compare two prompts on the **same gold contracts** (markdown of `valid_contract_ids`, plus CSV rows for hybrid). Retrieval is skipped on purpose so the score is about the prompt, not RRF.
+
+| Prompt | What it asks the model to do | In the live app? |
+|---|---|---|
+| **concise** | Short answer, IDs when useful, no invention | **Yes** (`RAG_ANSWER_PROMPT=concise`) |
+| **extractive** | Copy numbers exactly, quote phrases, always list every contract ID | No (evaluated only) |
+
+```bash
+python evaluation/evaluate_llm.py
+```
+
+That writes `evaluation/llm_prompt_comparison.json` and prints a win rate (RELEVANT vs the reference). Needs your OpenAI key. Use `--limit 2` first if you only want a smoke test.
+
+**We keep `concise` in Streamlit** unless extractive clearly wins on your run. Paste the summary table into this README after you run it (this environment has no API key, so the percentages are not filled in here).
+
+Structured questions stay on Pandas; they are not part of this prompt A/B.
+
+### Query rewriting — why Hit@3 barely moved
+
+Rewriting the user question (expand, HyDE, spell-fix) before BM25/vector is a **best-practice bonus point**. On **this** eval set it is the wrong lever.
+
+The 50 questions were written **from the contracts**, with the same words as the files (`energy adder`, `force majeure`, `payment terms`, product names). BM25 already matches. A rewrite that adds synonyms cannot jump Hit@3 much — that is why RRF looked “almost the same”.
+
+| Rewriting helps | Rewriting does little |
+|---|---|
+| Typos (`polyethlene`, `forc majeur`) | Eval questions that already match headings |
+| Nicknames (`PE` → Polyethylene, `FM` → force majeure) | Structured / Pandas questions |
+| Vague asks (`can they cancel?` → termination, penalty, FM) | Hybrid **after** CSV already has the IDs (tiny search set) |
+| Mixed language (German *Rahmenvertrag* vs English “framework”) | Questions with no contract terms — those need the **router**, not a prettier query |
+
+So: rewriting is not mainly for typos, and it is not for nonsense questions. It is for **vocabulary mismatch** between how a buyer talks and how the PDF is written. We did not turn it on in the app because it does not move this benchmark. Better remaining levers: skip the Cross-Encoder on unstructured, or chunking.
+
 ---
 
 ## Grafana
@@ -269,6 +336,23 @@ After each answer the app can ask the model: “Is this relevant?” That second
 - **Synthetic contracts.** Not legal advice.
 - **Docker / Postgres** needed for vectors. No login.
 - **First question is slow.** Judge adds a second OpenAI call.
+- **No query rewriting** in the live flow (see above).
+- **Not deployed to the cloud** in this submission (see below).
+
+### Cloud deploy (course +2, not done here)
+
+A public URL is enough for the bonus. This stack is heavier than a single Streamlit file:
+
+| Piece | What a cloud version needs |
+|---|---|
+| App | One host that can run **Docker Compose** (or a VM): Streamlit, ingest, embeddings |
+| Postgres + pgvector | A managed DB **with pgvector**, or Postgres in Compose on the same VM. Streamlit Community Cloud has **no** long-lived Postgres. |
+| Grafana | Same VM (`:3000`) or Grafana Cloud with the same SQL |
+| Secrets | `OPENAI_API_KEY` only in the host secret store. Never commit `.env`. Do not publish port `5432`. |
+| Models | First request still downloads MiniLM + Cross-Encoder; disk and RAM matter (1–2 GB+). |
+| HTTPS / auth | Reverse proxy. This demo has **no login** — do not put real contracts on a public IP. |
+
+Practical cheap path: one small VM (Hetzner, Lightsail, Render Docker, Fly) → `docker compose up --build`, open 8502 and 3000, set env vars. Streamlit Cloud alone is a poor fit unless you drop Grafana and pgvector.
 
 ### Market API later — constraints (not blockers)
 
@@ -285,6 +369,7 @@ After each answer the app can ask the model: “Is this relevant?” That second
 
 ```text
 app.py                    Streamlit UI
+requirements.txt          pinned pip versions (Docker uses this)
 docker-compose.yml        Postgres, Grafana, app
 data/chemical_contracts.csv
 data/contracts/*.md       100 markdown files

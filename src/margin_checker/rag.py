@@ -30,6 +30,24 @@ MODEL = "gpt-4o-mini"
 RRF_CANDIDATES = 10
 RERANK_TOP_K = 3
 
+ANSWER_PROMPT_CONCISE = "concise"
+ANSWER_PROMPT_EXTRACTIVE = "extractive"
+ANSWER_PROMPT_STYLES = (ANSWER_PROMPT_CONCISE, ANSWER_PROMPT_EXTRACTIVE)
+
+
+def resolve_answer_prompt(style=None):
+    name = (
+        style
+        or os.getenv("RAG_ANSWER_PROMPT")
+        or ANSWER_PROMPT_CONCISE
+    ).strip().lower()
+    if name not in ANSWER_PROMPT_STYLES:
+        raise ValueError(
+            f"Unknown answer prompt {name!r}. "
+            f"Use one of: {', '.join(ANSWER_PROMPT_STYLES)}"
+        )
+    return name
+
 
 # --------------------------------------------------
 # Cost calculation
@@ -374,45 +392,54 @@ def find_structured_contracts(query):
 # Final answer generation
 # --------------------------------------------------
 
-def generate_answer(query, route, results):
-
+def context_from_results(route, results):
     if route == "structured":
+        return json.dumps(results, default=str, indent=2)
 
-        context = json.dumps(
-            results,
-            default=str,
-            indent=2
-        )
-
-    elif route == "unstructured":
-
-        context = "\n\n".join(
+    if route == "unstructured":
+        return "\n\n".join(
             f"Contract: {r['contract_id']}\n{r['chunk_text']}"
             for r in results
         )
 
+    structured = json.dumps(
+        results["structured"],
+        default=str,
+        indent=2,
+    )
+    text = "\n\n".join(
+        f"Contract: {r['contract_id']}\n{r['chunk_text']}"
+        for r in results["text"]
+    ) or (
+        "(No contract-text search. Structured result is an aggregation "
+        "or catalog-wide set; clauses from other agreements were not used.)"
+    )
+    return (
+        f"STRUCTURED DATA:\n{structured}\n\n"
+        f"CONTRACT TEXT:\n{text}"
+    )
+
+
+def render_answer_prompt(query, context, style=None):
+    """Build the generation prompt. Two styles are evaluated in
+    evaluation/evaluate_llm.py; the app keeps `concise`."""
+    style = resolve_answer_prompt(style)
+
+    if style == ANSWER_PROMPT_EXTRACTIVE:
+        instructions = """
+You are a contract analysis assistant for procurement
+and supply-chain professionals.
+
+Answer ONLY from the provided context.
+Copy numbers, dates, percentages, and names exactly.
+Always name every contract ID that appears in the context.
+Prefer short quoted phrases from the context over paraphrase.
+Use bullets when the question covers more than one field.
+Do not add commercial advice, market views, or extra clauses.
+If a requested figure is not in the context, say it is not in the context.
+"""
     else:
-
-        structured = json.dumps(
-            results["structured"],
-            default=str,
-            indent=2
-        )
-
-        text = "\n\n".join(
-            f"Contract: {r['contract_id']}\n{r['chunk_text']}"
-            for r in results["text"]
-        ) or (
-            "(No contract-text search. Structured result is an aggregation "
-            "or catalog-wide set; clauses from other agreements were not used.)"
-        )
-
-        context = (
-            f"STRUCTURED DATA:\n{structured}\n\n"
-            f"CONTRACT TEXT:\n{text}"
-        )
-
-    prompt = f"""
+        instructions = """
 You are a contract analysis assistant for procurement
 and supply-chain professionals.
 
@@ -427,6 +454,9 @@ Mention contract IDs when relevant.
 
 For structured questions, respect the ranking and values
 provided in the context.
+"""
+
+    return f"""{instructions.strip()}
 
 QUESTION:
 {query}
@@ -434,6 +464,15 @@ QUESTION:
 CONTEXT:
 {context}
 """
+
+
+def generate_answer(query, route, results, style=None):
+    context = context_from_results(route, results)
+    return generate_answer_from_context(query, context, style=style)
+
+
+def generate_answer_from_context(query, context, style=None):
+    prompt = render_answer_prompt(query, context, style=style)
 
     response = client.chat.completions.create(
         model=MODEL,
