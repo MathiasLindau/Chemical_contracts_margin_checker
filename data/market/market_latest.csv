@@ -1,0 +1,8 @@
+as_of_date,instrument,value,unit,currency,frequency,source
+2026-09-25,EURUSD,1.1403,USD/EUR,USD,daily,ECB
+2026-09-25,ECB_DEPOSIT,2.5,percent,EUR,on_change,ECB
+2026-08,EURIBOR_3M,2.5131429,percent,EUR,monthly,ECB
+2026-09-24,SOFR,3.88,percent,USD,daily,NYFED
+2026-08-01,BRENT,90.9,USD/bbl,USD,monthly,WORLD_BANK
+2026-08-01,GAS_EU,21.11,USD/mmbtu,USD,monthly,WORLD_BANK
+2026-08-01,MAIZE,224.0,USD/t,USD,monthly,WORLD_BANK
