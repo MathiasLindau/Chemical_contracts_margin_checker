@@ -1,0 +1,9 @@
+instrument,what_it_represents,provider,api_or_download_url,frequency,unit,currency,api_key_required,free_for_demo,license_risk,status
+EURUSD,US dollar per 1 euro,ECB,https://data.ecb.europa.eu/help/api/overview,daily,USD/EUR,USD,no,yes,low,use
+BRENT,Brent crude oil,World Bank Pink Sheet,https://www.worldbank.org/en/research/commodity-markets,monthly,USD/bbl,USD,no,yes,low,use
+NATURAL_GAS_EU,European natural gas,World Bank Pink Sheet,https://www.worldbank.org/en/research/commodity-markets,monthly,USD/mmbtu,USD,no,yes,low,use
+MAIZE,Maize / corn,World Bank Pink Sheet,https://www.worldbank.org/en/research/commodity-markets,monthly,USD/t,USD,no,yes,low,use
+BRENT_EIA,"Europe Brent spot, daily",EIA,https://www.eia.gov/opendata/documentation.php,daily,USD/bbl,USD,yes,yes_with_free_key,low,needs_key
+ENERGY_EU,European day-ahead electricity,ENTSO-E,https://web-api.tp.entsoe.eu/api,hourly,EUR/MWh,EUR,token,yes_after_email_approval,medium,needs_token
+CONTAINER_FREIGHT,Container freight index,Baltic / FBX / SCFI,https://www.balticexchange.com/en/data-services/Methodology/market-data.html,daily_or_weekly,index,,licence,no,high,not_free
+BDI,"Dry-bulk freight, not containers",Baltic Exchange,https://www.balticexchange.com/en/data-services/Methodology/market-data.html,daily,index,,licence,no,high,not_free
