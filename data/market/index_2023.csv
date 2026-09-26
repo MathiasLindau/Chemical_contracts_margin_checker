@@ -1,0 +1,7 @@
+instrument,baseline_date,baseline_value,unit,source
+EURUSD,2023-01-02,1.0683,USD for 1 EUR,ECB
+GAS_EU,2023-01-01,20.18,USD per mmBtu,World Bank
+BRENT,2023-01-01,83.1,USD per barrel,World Bank
+MAIZE,2023-01-01,302.8,USD per metric ton,World Bank
+SOFR,2023-01-03,4.31,percent per year,NY Fed
+EURIBOR_3M,2023-01,2.3448636,percent per year,ECB
