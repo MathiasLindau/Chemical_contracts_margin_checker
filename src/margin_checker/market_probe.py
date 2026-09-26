@@ -2,11 +2,7 @@
 
 The first line is the header. One data row per calendar day in Berlin.
 A second run on the same day replaces that row. The file is left
-unchanged when any series fails.
-
-GitHub Actions runs this on weekdays around 06:00 Berlin time. A manual
-start always writes. A scheduled start writes only between 06:00 and
-09:00 Berlin on Monday to Friday.
+unchanged when any series fails. Start it by hand when you want a new row.
 
     python -m src.margin_checker.market_probe
 """
@@ -16,7 +12,6 @@ from __future__ import annotations
 import csv
 import io
 import json
-import os
 import re
 import sys
 from datetime import datetime
@@ -127,20 +122,27 @@ def pink_sheet_table(rows):
     return labels, last, updated
 
 
+WB_MONTHLY_FALLBACK = (
+    "https://thedocs.worldbank.org/en/doc/74e8be41ceb20fa0da750cda2f6b9e4e-0050012026/"
+    "related/CMO-Historical-Data-Monthly.xlsx"
+)
+
+
+def worldbank_workbook_url(page):
+    match = re.search(
+        r"https://thedocs\.worldbank\.org/[^\"'\s>]+CMO-Historical-Data-Monthly\.xlsx",
+        page.decode("utf-8", "replace"),
+    )
+    return match.group(0) if match else WB_MONTHLY_FALLBACK
+
+
 def fetch_worldbank():
     from openpyxl import load_workbook
 
     print("loading World Bank workbook...", flush=True)
     status, page = http_get("https://www.worldbank.org/en/research/commodity-markets")
-    if status != 200:
-        raise RuntimeError("page HTTP " + str(status))
-    match = re.search(
-        r"https://thedocs\.worldbank\.org/[^\"']+CMO-Historical-Data-Monthly\.xlsx",
-        page.decode("utf-8", "replace"),
-    )
-    if not match:
-        raise RuntimeError("workbook link missing")
-    status, blob = http_get(match.group(0))
+    url = worldbank_workbook_url(page) if status == 200 else WB_MONTHLY_FALLBACK
+    status, blob = http_get(url)
     if status != 200:
         raise RuntimeError("workbook HTTP " + str(status))
     rows = list(load_workbook(io.BytesIO(blob), read_only=True, data_only=True)["Monthly Prices"].iter_rows(values_only=True))
@@ -185,20 +187,9 @@ def write_row(path, row):
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def berlin_now():
-    return datetime.now(BERLIN)
-
-
-def in_morning_window(now):
-    return now.weekday() < 5 and 6 <= now.hour < 9
-
-
 def probe(path=None, pulled_on=None):
-    if os.environ.get("MARKET_PROBE_SCHEDULED") == "1" and not in_morning_window(berlin_now()):
-        print("outside 06:00 Berlin, csv unchanged", flush=True)
-        return 0
     path = Path(path) if path else output_path()
-    pulled_on = pulled_on or berlin_now().date().isoformat()
+    pulled_on = pulled_on or datetime.now(BERLIN).date().isoformat()
     print(f"{'group':<8} {'series':<14} {'as_of':<12} {'value':<12} {'unit':<12} cadence", flush=True)
     try:
         row = daily_row(pulled_on, fetch_ecb(), fetch_sofr(), fetch_worldbank())

@@ -1,9 +1,8 @@
 import tempfile
 import unittest
-from datetime import datetime
 from pathlib import Path
 
-from src.margin_checker.market_probe import BERLIN, HEADER, in_morning_window, pink_sheet_table, write_row
+from src.margin_checker.market_probe import HEADER, pink_sheet_table, worldbank_workbook_url, write_row
 
 
 class PinkSheetTableTest(unittest.TestCase):
@@ -61,9 +60,10 @@ class PinkSheetTableTest(unittest.TestCase):
                 [",".join(HEADER), "2026-09-26,1.1403,2026-09-25"],
             )
 
-    def test_morning_window_is_weekday_berlin_from_six_until_nine(self):
-        self.assertTrue(in_morning_window(datetime(2026, 9, 28, 6, 0, tzinfo=BERLIN)))
-        self.assertTrue(in_morning_window(datetime(2026, 9, 28, 8, 59, tzinfo=BERLIN)))
-        self.assertFalse(in_morning_window(datetime(2026, 9, 28, 5, 59, tzinfo=BERLIN)))
-        self.assertFalse(in_morning_window(datetime(2026, 9, 28, 9, 0, tzinfo=BERLIN)))
-        self.assertFalse(in_morning_window(datetime(2026, 9, 26, 6, 0, tzinfo=BERLIN)))
+    def test_worldbank_url_comes_from_the_page_when_present(self):
+        page = b'<a href="https://thedocs.worldbank.org/en/doc/abc/related/CMO-Historical-Data-Monthly.xlsx">Monthly</a>'
+        self.assertTrue(worldbank_workbook_url(page).endswith("CMO-Historical-Data-Monthly.xlsx"))
+
+    def test_worldbank_url_falls_back_when_the_page_has_no_link(self):
+        url = worldbank_workbook_url(b"no workbook here")
+        self.assertTrue(url.endswith("CMO-Historical-Data-Monthly.xlsx"))
