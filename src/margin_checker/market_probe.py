@@ -1,4 +1,13 @@
-"""Print the latest free market values. One failure does not stop the rest.
+"""Pull the seven free series and append one row to api_price.csv.
+
+No header. One row per calendar day. A second run on the same day
+replaces that row. The file is left unchanged when any series fails.
+
+Column order:
+
+    pulled_on, eurusd, eurusd_as_of, ecb_deposit, ecb_deposit_as_of,
+    euribor_3m, euribor_3m_as_of, sofr, sofr_as_of, brent, brent_as_of,
+    gas_eu, gas_eu_as_of, maize, maize_as_of
 
     python -m src.margin_checker.market_probe
 """
@@ -9,6 +18,9 @@ import csv
 import io
 import json
 import re
+import sys
+from datetime import date
+from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -23,6 +35,13 @@ WB = (
     ("energy", "GAS_EU", "Natural gas, Europe", "USD/mmbtu"),
     ("raw", "MAIZE", "Maize", "USD/t"),
 )
+
+
+def output_path():
+    here = Path(__file__).resolve()
+    if here.parent.name == "market":
+        return here.with_name("api_price.csv")
+    return here.parents[2] / "data" / "market" / "api_price.csv"
 
 
 def http_get(url, headers=None):
@@ -40,15 +59,34 @@ def show(group, name, when, value, unit, cadence):
     print(f"{group:<8} {name:<14} {when:<12} {value:<12} {unit:<12} {cadence}", flush=True)
 
 
-def skip(name, reason):
-    print(f"skip     {name:<14} {reason}", flush=True)
+def ecb_last(key):
+    status, body = http_get(
+        "https://data-api.ecb.europa.eu/service/data/" + key + "?lastNObservations=1",
+        {"Accept": "text/csv"},
+    )
+    if status != 200:
+        raise RuntimeError("HTTP " + str(status))
+    row = list(csv.DictReader(io.StringIO(body.decode())))[-1]
+    return row["TIME_PERIOD"], row["OBS_VALUE"]
 
 
-def guard(name, fn):
-    try:
-        fn()
-    except Exception as exc:
-        skip(name, f"{exc.__class__.__name__}: {exc}"[:140])
+def fetch_ecb():
+    found = {}
+    for group, name, key, unit, cadence in ECB:
+        when, value = ecb_last(key)
+        found[name] = (when, value)
+        show(group, name, when, value, unit, cadence)
+    return found
+
+
+def fetch_sofr():
+    status, body = http_get("https://markets.newyorkfed.org/api/rates/secured/sofr/last/1.json")
+    if status != 200:
+        raise RuntimeError("HTTP " + str(status))
+    row = json.loads(body)["refRates"][0]
+    when, value = row["effectiveDate"], str(row["percentRate"])
+    show("rate", "SOFR", when, value, "percent", "business day")
+    return when, value
 
 
 def pink_sheet_table(rows):
@@ -70,26 +108,6 @@ def pink_sheet_table(rows):
     return labels, last, updated
 
 
-def fetch_ecb():
-    for group, name, key, unit, cadence in ECB:
-        status, body = http_get(
-            "https://data-api.ecb.europa.eu/service/data/" + key + "?lastNObservations=1",
-            {"Accept": "text/csv"},
-        )
-        if status != 200:
-            raise RuntimeError("HTTP " + str(status))
-        row = list(csv.DictReader(io.StringIO(body.decode())))[-1]
-        show(group, name, row["TIME_PERIOD"], row["OBS_VALUE"], unit, cadence)
-
-
-def fetch_sofr():
-    status, body = http_get("https://markets.newyorkfed.org/api/rates/secured/sofr/last/1.json")
-    if status != 200:
-        raise RuntimeError("HTTP " + str(status))
-    row = json.loads(body)["refRates"][0]
-    show("rate", "SOFR", row["effectiveDate"], row["percentRate"], "percent", "business day")
-
-
 def fetch_worldbank():
     from openpyxl import load_workbook
 
@@ -108,20 +126,58 @@ def fetch_worldbank():
         raise RuntimeError("workbook HTTP " + str(status))
     rows = list(load_workbook(io.BytesIO(blob), read_only=True, data_only=True)["Monthly Prices"].iter_rows(values_only=True))
     labels, last, updated = pink_sheet_table(rows)
+    found = {}
     for group, name, label, unit in WB:
         if label not in labels:
-            skip(name, "column missing")
-            continue
-        show(group, name, str(last[0]), last[labels.index(label)], unit, "monthly " + updated)
+            raise RuntimeError(name + " column missing")
+        value = str(last[labels.index(label)])
+        found[name] = (str(last[0]), value)
+        show(group, name, str(last[0]), value, unit, "monthly " + updated)
+    return found
 
 
-def probe():
+def daily_row(pulled_on, ecb, sofr, worldbank):
+    sofr_as_of, sofr_value = sofr
+    return [
+        pulled_on,
+        ecb["EURUSD"][1], ecb["EURUSD"][0],
+        ecb["ECB_DEPOSIT"][1], ecb["ECB_DEPOSIT"][0],
+        ecb["EURIBOR_3M"][1], ecb["EURIBOR_3M"][0],
+        sofr_value, sofr_as_of,
+        worldbank["BRENT"][1], worldbank["BRENT"][0],
+        worldbank["GAS_EU"][1], worldbank["GAS_EU"][0],
+        worldbank["MAIZE"][1], worldbank["MAIZE"][0],
+    ]
+
+
+def write_row(path, row):
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lines = path.read_text(encoding="utf-8").splitlines() if path.exists() else []
+    lines = [line for line in lines if line.strip()]
+    if lines and lines[-1].split(",", 1)[0] == str(row[0]):
+        lines.pop()
+    buffer = io.StringIO()
+    csv.writer(buffer, lineterminator="\n").writerow(row)
+    lines.append(buffer.getvalue().rstrip("\n"))
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def probe(path=None, pulled_on=None):
+    path = Path(path) if path else output_path()
+    pulled_on = pulled_on or date.today().isoformat()
     print(f"{'group':<8} {'series':<14} {'as_of':<12} {'value':<12} {'unit':<12} cadence", flush=True)
-    guard("ECB", fetch_ecb)
-    guard("SOFR", fetch_sofr)
-    guard("WORLD_BANK", fetch_worldbank)
-    print("done", flush=True)
+    try:
+        row = daily_row(pulled_on, fetch_ecb(), fetch_sofr(), fetch_worldbank())
+    except Exception as exc:
+        print(f"skip     csv            {exc.__class__.__name__}: {exc}"[:160], flush=True)
+        print("csv unchanged", flush=True)
+        return 1
+    write_row(path, row)
+    print("wrote", path, flush=True)
+    print(",".join(str(cell) for cell in row), flush=True)
+    return 0
 
 
 if __name__ == "__main__":
-    probe()
+    sys.exit(probe())
