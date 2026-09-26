@@ -1,6 +1,7 @@
 import json
 import os
 import time
+from pathlib import Path
 
 import pandas as pd
 from dotenv import load_dotenv
@@ -12,6 +13,7 @@ from src.margin_checker.retrieval import (
     get_cached_chunks,
     hybrid_text_contract_ids,
 )
+from src.margin_checker.daily_prices import attach_daily_prices
 from src.margin_checker.structured import (
     STRUCTURED_ROW_CAP,
     apply_catalog_filters,
@@ -26,6 +28,7 @@ load_dotenv()
 client = OpenAI()
 
 CSV_PATH = "data/chemical_contracts.csv"
+PRICE_PATH = Path("data/market/contract_price.csv")
 MODEL = "gpt-4o-mini"
 RRF_CANDIDATES = 10
 RERANK_TOP_K = 3
@@ -73,6 +76,9 @@ Available fields:
 - customer_name
 - product_name
 - currency
+- indicative_price_per_ton
+- financing_per_ton
+- logistics_amount
 
 Allowed operations:
 
@@ -93,6 +99,9 @@ Rules:
 - "lowest", "cheapest", "smallest" → bottom_n
 - "highest price" → field = base_price
 - "lowest price" → field = base_price
+- "today's price", "indicative price", "current price" → field = indicative_price_per_ton
+- "financing" → field = financing_per_ton
+- "logistics cost", "transport cost" → field = logistics_amount
 - "highest adder" → field = overall_adder
 - "lowest adder" → field = overall_adder
 - "overall adder" means:
@@ -148,6 +157,8 @@ Return ONLY valid JSON:
 def find_structured_contracts(query):
 
     df = pd.read_csv(CSV_PATH)
+    if PRICE_PATH.exists():
+        df = attach_daily_prices(df, pd.read_csv(PRICE_PATH))
 
     specification, usage = interpret_structured_query(query)
 

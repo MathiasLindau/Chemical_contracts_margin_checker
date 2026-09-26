@@ -15,9 +15,17 @@ import csv
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]
+def project_root():
+    starts = [Path.cwd(), Path(__file__).resolve().parent]
+    for start in starts:
+        for folder in [start, *start.parents]:
+            if (folder / "data" / "market").is_dir():
+                return folder
+    raise SystemExit("Start this from the margin-checker folder.")
+
+
+ROOT = project_root()
 MARKET = ROOT / "data" / "market"
-CONTRACTS = ROOT / "data" / "chemical_contracts.csv"
 OUT = MARKET / "contract_price.csv"
 
 API_COLUMNS = {
@@ -225,22 +233,38 @@ def write_prices(path, rows):
     return path
 
 
+def contracts_file():
+    candidates = (
+        MARKET / "contract_data.csv",
+        ROOT / "data" / "chemical_contracts.csv",
+        ROOT / "data" / "contracts" / "chemical_contracts.csv",
+    )
+    for path in candidates:
+        if path.exists():
+            return path
+    print("missing contract table. Looked for:", flush=True)
+    for path in candidates:
+        print("  " + str(path), flush=True)
+    return None
+
+
 def main():
     print("calculate_contract_price start", flush=True)
-    required = (
-        CONTRACTS,
+    contracts = contracts_file()
+    required = [
         MARKET / "product_index_map.csv",
         MARKET / "index_2023.csv",
         MARKET / "api_price.csv",
         MARKET / "logistics_price.csv",
-    )
+    ]
     missing = [path for path in required if not path.exists()]
-    if missing:
+    if contracts is None or missing:
         for path in missing:
             print("missing " + str(path), flush=True)
         return 1
+    print("contracts " + str(contracts), flush=True)
     rows = build_rows(
-        read_csv(CONTRACTS),
+        read_csv(contracts),
         read_csv(MARKET / "product_index_map.csv"),
         read_csv(MARKET / "index_2023.csv"),
         read_csv(MARKET / "api_price.csv"),
