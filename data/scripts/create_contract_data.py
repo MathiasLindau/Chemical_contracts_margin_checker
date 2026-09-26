@@ -1,21 +1,16 @@
-"""Build data/market/contract_data.csv from the files in data/contracts.
+"""Liest data/contracts/*.md und schreibt data/market/contract_data.csv.
 
-Each contract is one Markdown file, for example data/contracts/CON-2023-0003.md.
-A single chemical_contracts.csv is optional. This script does not need it.
-
-Save this file, then run it from the margin-checker folder:
+Jede Markdown-Datei ist ein Vertrag. Die Endziffer der Vertragsnummer
+sagt, welches der sechs Layouts es ist. Speichern, dann im Projektordner:
 
     python -u data/scripts/create_contract_data.py
 """
 
-from __future__ import annotations
-
 import csv
-import re
 import sys
 from pathlib import Path
 
-HEADER = (
+COLUMNS = [
     "contract_id",
     "customer_name",
     "product_name",
@@ -30,7 +25,7 @@ HEADER = (
     "min_shelf_life_days",
     "demurrage_days_included",
     "breach_penalty_amount",
-)
+]
 
 
 def project_root():
@@ -39,139 +34,154 @@ def project_root():
         for folder in [start, *start.parents]:
             if (folder / "data" / "contracts").is_dir():
                 return folder
-    raise SystemExit("Start this from the margin-checker folder.")
+    raise SystemExit("data/contracts nicht gefunden. Im Projektordner starten.")
 
 
-def grab(text, patterns, label):
-    for pattern in patterns:
-        match = re.search(pattern, text, re.I | re.S)
-        if match:
-            return match
-    raise RuntimeError(label)
+def between(text, left, right):
+    start = text.find(left)
+    if start < 0:
+        raise RuntimeError(left)
+    start += len(left)
+    end = text.find(right, start)
+    if end < 0:
+        raise RuntimeError(right)
+    return text[start:end].strip()
 
 
-def parse_contract(path):
-    text = path.read_text(encoding="utf-8")
-    if path.suffix.lower() == ".csv":
-        row = next(csv.DictReader(text.splitlines()))
-        row["contract_id"] = row.get("contract_id") or path.stem
-        return {column: row[column] for column in HEADER}
+def money(piece):
+    price, currency = piece.split()[:2]
+    return price, currency
 
-    customer = grab(text, [r"\*\*([^*]+)\*\*"], "customer").group(1).strip()
-    product = grab(text, [
-        r"\*\*Product:\*\*\s*([^\n]+)",
-        r"Geliefert wird \*\*([^*]+)\*\*",
-        r"The product is ([^.]+)\.",
-        r"SKU:\s*([^.]+)\.",
-        r"## Substance\s+([^.]+)\.",
-        r"## Goods\s+([^,\n]+)",
-    ], "product").group(1).strip()
-    price = grab(text, [
-        r"Base Price:\*\*\s*([0-9.]+)\s+([A-Z]{3})",
-        r"Basispreis\s+([0-9.]+)\s+([A-Z]{3})",
-        r"firm base price is\s+([0-9.]+)\s+([A-Z]{3})",
-        r"Unit price\s+([0-9.]+)\s+([A-Z]{3})",
-        r"Price\s+([0-9.]+)\s+([A-Z]{3})",
-        r"\b([0-9.]+)\s+([A-Z]{3})\s+per ton",
-    ], "price")
-    energy = grab(text, [
-        r"Energy Adder:\*\*\s*([0-9.]+)\s*%",
-        r"Energiezuschlag\s+([0-9.]+)\s+Prozent",
-        r"energy adder of\s+([0-9.]+)\s*%",
-        r"Energy cost recovery\s+([0-9.]+)\s*%",
-        r"plus energy\s+([0-9.]+)\s*%",
-        r"energy component of\s+([0-9.]+)\s*%",
-    ], "energy").group(1)
-    raw = grab(text, [
-        r"Raw Material Adder:\*\*\s*([0-9.]+)\s*%",
-        r"Rohstoffzuschlag\s+([0-9.]+)\s+Prozent",
-        r"feedstock adder of\s+([0-9.]+)\s*%",
-        r"Raw-material recovery\s+([0-9.]+)\s*%",
-        r"raw materials\s+([0-9.]+)\s*%",
-        r"feedstock component of\s+([0-9.]+)\s*%",
-    ], "raw").group(1)
-    band = grab(text, [
-        r"Minimum monthly volume of\s+([0-9.]+)\s+tons up to a maximum of\s+([0-9.]+)",
-        r"zwischen\s+([0-9.]+)\s+t\s.*?und\s+([0-9.]+)\s+t",
-        r"not be less than\s+([0-9.]+)\s+metric tons and shall not exceed\s+([0-9.]+)",
-        r"minimum\s+([0-9.]+)\s+MT/month\..*?upside to\s+([0-9.]+)",
-        r"below\s+([0-9.]+)\s+t or above\s+([0-9.]+)",
-        r"([0-9.]+)[–-]([0-9.]+)\s+tons per month",
-    ], "volume")
-    payment = grab(text, [
-        r"Net\s+([0-9.]+)\s+days",
-        r"Zahlungsziel:\s*([0-9.]+)\s+Tage",
-        r"due\s+([0-9.]+)\s+days after",
-        r"Payment within\s+([0-9.]+)\s+days",
-        r"Net\s+([0-9.]+)\.",
-        r"due in\s+([0-9.]+)\s+days",
-    ], "payment").group(1)
-    transport = grab(text, [
-        r"Max Transport Duration:\*\*\s*([0-9.]+)",
-        r"Maximale Transportzeit\s+([0-9.]+)",
-        r"Transit shall not exceed\s+([0-9.]+)",
-        r"Maximum transit\s+([0-9.]+)",
-        r"Lead time cap\s+([0-9.]+)",
-        r"Transit limit\s+([0-9.]+)",
-    ], "transport").group(1)
-    shelf = grab(text, [
-        r"Minimum Shelf Life:\*\*\s*([0-9.]+)",
-        r"mindestens\s+([0-9.]+)\s+Tage",
-        r"at least\s+([0-9.]+)\s+days",
-        r"Minimum remaining life\s+([0-9.]+)",
-        r"Shelf-life gate\s+([0-9.]+)",
-        r"Minimum remaining shelf life\s+([0-9.]+)",
-    ], "shelf").group(1)
-    demurrage = grab(text, [
-        r"Demurrage / Free Container Days:\*\*\s*([0-9.]+)",
-        r"demurrage-frei:\s*([0-9.]+)",
-        r"([0-9.]+)\s+laytime days",
-        r"Free time\s+([0-9.]+)",
-        r"Free storage\s+([0-9.]+)",
-        r"Demurrage allowance\s+([0-9.]+)",
-    ], "demurrage").group(1)
-    penalty = grab(text, [
-        r"penalty of \*\*([0-9.]+)",
-        r"Vertragsstrafe von \*\*([0-9.]+)",
-        r"liquidated at \*\*([0-9.]+)",
-        r"damages of \*\*([0-9.]+)",
-        r"penalty \*\*([0-9.]+)",
-        r"damages: \*\*([0-9.]+)",
-    ], "penalty").group(1)
+
+def texas(text):
+    price, currency = money(between(text, "**Base Price:** ", " per"))
     return {
-        "contract_id": path.stem,
-        "customer_name": customer,
-        "product_name": product,
-        "base_price": price.group(1),
-        "currency": price.group(2),
-        "energy_adder_percentage": energy,
-        "raw_material_adder_percentage": raw,
-        "min_monthly_volume_tons": band.group(1),
-        "max_monthly_volume_tons": band.group(2),
-        "max_transport_duration_days": transport,
-        "payment_terms_days": payment,
-        "min_shelf_life_days": shelf,
-        "demurrage_days_included": demurrage,
-        "breach_penalty_amount": penalty,
+        "customer_name": between(text, "and **", "**"),
+        "product_name": between(text, "**Product:** ", "\n"),
+        "base_price": price,
+        "currency": currency,
+        "min_monthly_volume_tons": between(text, "Minimum monthly volume of ", " tons"),
+        "max_monthly_volume_tons": between(text, "up to a maximum of ", " tons"),
+        "energy_adder_percentage": between(text, "**Energy Adder:** ", "%"),
+        "raw_material_adder_percentage": between(text, "**Raw Material Adder:** ", "%"),
+        "payment_terms_days": between(text, "Net ", " days"),
+        "max_transport_duration_days": between(text, "**Max Transport Duration:** ", " days"),
+        "min_shelf_life_days": between(text, "**Minimum Shelf Life:** ", " days"),
+        "demurrage_days_included": between(text, "**Demurrage / Free Container Days:** ", " days"),
+        "breach_penalty_amount": between(text, "penalty of **", " "),
     }
 
 
+def german(text):
+    price, currency = money(between(text, "Basispreis ", "/t"))
+    return {
+        "customer_name": between(text, "Käufer: **", "**"),
+        "product_name": between(text, "Geliefert wird **", "**"),
+        "base_price": price,
+        "currency": currency,
+        "min_monthly_volume_tons": between(text, "zwischen ", " t"),
+        "max_monthly_volume_tons": between(text, "floor) und ", " t"),
+        "energy_adder_percentage": between(text, "Energiezuschlag ", " Prozent"),
+        "raw_material_adder_percentage": between(text, "Rohstoffzuschlag ", " Prozent"),
+        "payment_terms_days": between(text, "Zahlungsziel: ", " Tage"),
+        "max_transport_duration_days": between(text, "Maximale Transportzeit ", " Tage"),
+        "min_shelf_life_days": between(text, "mindestens ", " Tage"),
+        "demurrage_days_included": between(text, "demurrage-frei: ", " Tage"),
+        "breach_penalty_amount": between(text, "Vertragsstrafe von **", " "),
+    }
+
+
+def english(text):
+    price, currency = money(between(text, "base price is ", " per"))
+    shelf = between(text, "at least ", " days")
+    return {
+        "customer_name": between(text, "and **", "**"),
+        "product_name": between(text, "The product is ", "."),
+        "base_price": price,
+        "currency": currency,
+        "min_monthly_volume_tons": between(text, "less than ", " metric"),
+        "max_monthly_volume_tons": between(text, "not exceed ", " metric"),
+        "energy_adder_percentage": between(text, "energy adder of ", "%"),
+        "raw_material_adder_percentage": between(text, "feedstock adder of ", "%"),
+        "payment_terms_days": between(text, "due ", " days"),
+        "max_transport_duration_days": between(text, "Transit shall not exceed ", " days"),
+        "min_shelf_life_days": shelf,
+        "demurrage_days_included": between(text, "at least " + shelf + " days. ", " laytime"),
+        "breach_penalty_amount": between(text, "liquidated at **", " "),
+    }
+
+
+def singapore(text):
+    price, currency = money(between(text, "Unit price ", "/MT"))
+    return {
+        "customer_name": between(text, "Buyer: **", "**"),
+        "product_name": between(text, "## Goods\n", ","),
+        "base_price": price,
+        "currency": currency,
+        "min_monthly_volume_tons": between(text, "minimum ", " MT"),
+        "max_monthly_volume_tons": between(text, "upside to ", " MT"),
+        "energy_adder_percentage": between(text, "Energy cost recovery ", "%"),
+        "raw_material_adder_percentage": between(text, "Raw-material recovery ", "%"),
+        "payment_terms_days": between(text, "Payment within ", " days"),
+        "max_transport_duration_days": between(text, "Maximum transit ", " days"),
+        "min_shelf_life_days": between(text, "Minimum remaining life ", " days"),
+        "demurrage_days_included": between(text, "Free time ", " days"),
+        "breach_penalty_amount": between(text, "damages of **", " "),
+    }
+
+
+def purchase_order(text):
+    price, currency = money(between(text, "Price ", "/t"))
+    return {
+        "customer_name": between(text, "Buyer **", "**"),
+        "product_name": between(text, "SKU: ", "."),
+        "base_price": price,
+        "currency": currency,
+        "energy_adder_percentage": between(text, "plus energy ", "%"),
+        "raw_material_adder_percentage": between(text, "plus raw materials ", "%"),
+        "min_monthly_volume_tons": between(text, "below ", " t"),
+        "max_monthly_volume_tons": between(text, "above ", " t"),
+        "payment_terms_days": between(text, "Net ", "."),
+        "max_transport_duration_days": between(text, "Lead time cap ", " days"),
+        "min_shelf_life_days": between(text, "Shelf-life gate ", " days"),
+        "demurrage_days_included": between(text, "Free storage ", " days"),
+        "breach_penalty_amount": between(text, "penalty **", " "),
+    }
+
+
+def reach(text):
+    low, high = between(text, "Contracted band: ", " tons").split("–")
+    price, currency = money(between(text, "## Formula price\n", " per"))
+    return {
+        "customer_name": between(text, "and **", "**"),
+        "product_name": between(text, "## Substance\n", "."),
+        "base_price": price,
+        "currency": currency,
+        "energy_adder_percentage": between(text, "energy component of ", "%"),
+        "raw_material_adder_percentage": between(text, "feedstock component of ", "%"),
+        "min_monthly_volume_tons": low.strip(),
+        "max_monthly_volume_tons": high.strip(),
+        "payment_terms_days": between(text, "due in ", " days"),
+        "max_transport_duration_days": between(text, "Transit limit ", " days"),
+        "min_shelf_life_days": between(text, "shelf life ", " days"),
+        "demurrage_days_included": between(text, "Demurrage allowance ", " days"),
+        "breach_penalty_amount": between(text, "damages: **", " "),
+    }
+
+
+READERS = [texas, german, english, singapore, purchase_order, reach]
+
+
 def contract_files(folder):
-    files = [
-        path for path in folder.iterdir()
-        if path.suffix.lower() in {".md", ".csv"} and path.stem.startswith("CON-")
-    ]
-    return sorted(files, key=lambda path: path.name)
+    return sorted(Path(folder).glob("CON-*.md"))
 
 
-def write_contracts(path, rows):
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=HEADER)
-        writer.writeheader()
-        writer.writerows(rows)
-    return path
+def parse_contract(path):
+    text = Path(path).read_text(encoding="utf-8")
+    kind = int(path.stem.split("-")[-1]) % 6
+    row = READERS[kind](text)
+    row["contract_id"] = path.stem
+    return row
 
 
 def main():
@@ -181,17 +191,21 @@ def main():
     files = contract_files(folder)
     print(f"found {len(files)} files in {folder}", flush=True)
     if not files:
-        print("no CON-*.md or CON-*.csv files in data/contracts", flush=True)
+        print("keine CON-*.md in data/contracts", flush=True)
         return 1
     rows = []
     for path in files:
         try:
             rows.append(parse_contract(path))
         except RuntimeError as exc:
-            print(f"skip {path.name} {exc}", flush=True)
+            print(f"fehler {path.name}: {exc}", flush=True)
             return 1
     out = root / "data" / "market" / "contract_data.csv"
-    write_contracts(out, rows)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    with out.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=COLUMNS)
+        writer.writeheader()
+        writer.writerows(rows)
     print(f"wrote {out} contracts {len(rows)}", flush=True)
     return 0
 
