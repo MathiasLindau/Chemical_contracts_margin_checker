@@ -226,6 +226,19 @@ def write_prices(path, rows):
 
 
 def main():
+    print("calculate_contract_price start", flush=True)
+    required = (
+        CONTRACTS,
+        MARKET / "product_index_map.csv",
+        MARKET / "index_2023.csv",
+        MARKET / "api_price.csv",
+        MARKET / "logistics_price.csv",
+    )
+    missing = [path for path in required if not path.exists()]
+    if missing:
+        for path in missing:
+            print("missing " + str(path), flush=True)
+        return 1
     rows = build_rows(
         read_csv(CONTRACTS),
         read_csv(MARKET / "product_index_map.csv"),
@@ -236,7 +249,8 @@ def main():
     path = Path(sys.argv[1]) if len(sys.argv) > 1 else OUT
     write_prices(path, rows)
     print(f"wrote {path} rows {len(rows)}", flush=True)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
