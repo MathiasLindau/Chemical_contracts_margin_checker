@@ -1,8 +1,8 @@
 """Pull the seven free series and append one row to api_price.csv.
 
-The first line is the header. One data row per calendar day in Berlin.
-A second run on the same day replaces that row. The file is left
-unchanged when any series fails. Start it by hand when you want a new row.
+The first line names each series and its unit. One data row per Berlin
+day. A second run on the same day replaces that row. If a source fails,
+that cell keeps the newest value already in the file, so no cell is blank.
 
     python -m src.margin_checker.market_probe
 """
@@ -33,20 +33,20 @@ WB = (
 )
 BERLIN = ZoneInfo("Europe/Berlin")
 HEADER = (
-    "pulled_on",
-    "eurusd",
-    "eurusd_as_of",
-    "ecb_deposit",
-    "ecb_deposit_as_of",
-    "euribor_3m",
+    "pulled_on_date",
+    "usd_for_one_eur",
+    "usd_for_one_eur_as_of",
+    "ecb_deposit_rate_percent_per_year",
+    "ecb_deposit_rate_as_of",
+    "euribor_3m_percent_per_year",
     "euribor_3m_as_of",
-    "sofr",
+    "sofr_percent_per_year",
     "sofr_as_of",
-    "brent",
-    "brent_as_of",
-    "gas_eu",
-    "gas_eu_as_of",
-    "maize",
+    "brent_crude_usd_per_barrel",
+    "brent_crude_as_of",
+    "eu_natural_gas_usd_per_mmbtu",
+    "eu_natural_gas_as_of",
+    "maize_usd_per_metric_ton",
     "maize_as_of",
 )
 
@@ -171,13 +171,48 @@ def daily_row(pulled_on, ecb, sofr, worldbank):
     ]
 
 
+def is_data_line(line):
+    return re.match(r"\d{4}-\d{2}-\d{2}(?:\s|,)", line.strip()) is not None
+
+
+def previous_data_row(path):
+    path = Path(path)
+    if not path.exists():
+        return None
+    lines = [line for line in path.read_text(encoding="utf-8").splitlines() if is_data_line(line)]
+    if not lines:
+        return None
+    row = next(csv.reader([lines[-1]]))
+    return row if len(row) == len(HEADER) else None
+
+
+def fill_from_previous(row, previous):
+    previous = previous or []
+    filled = []
+    for index, value in enumerate(row):
+        if index == 0 or str(value).strip():
+            filled.append(value)
+        elif index < len(previous) and str(previous[index]).strip():
+            filled.append(previous[index])
+        else:
+            filled.append("")
+    missing = [HEADER[index] for index, value in enumerate(filled) if not str(value).strip()]
+    if missing:
+        raise RuntimeError("no earlier value for " + ", ".join(missing))
+    return filled
+
+
 def write_row(path, row):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     lines = path.read_text(encoding="utf-8").splitlines() if path.exists() else []
     lines = [line for line in lines if line.strip()]
     header = ",".join(HEADER)
-    if not lines or lines[0] != header:
+    if not lines:
+        lines = [header]
+    elif not is_data_line(lines[0]):
+        lines[0] = header
+    elif lines[0] != header:
         lines.insert(0, header)
     if len(lines) > 1 and lines[-1].split(",", 1)[0] == str(row[0]):
         lines.pop()
@@ -187,12 +222,23 @@ def write_row(path, row):
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
+def keep(name, fetch):
+    try:
+        return fetch()
+    except Exception as exc:
+        print(f"keep     {name:<14} {exc.__class__.__name__}: {exc}"[:160], flush=True)
+        return None
+
+
 def probe(path=None, pulled_on=None):
     path = Path(path) if path else output_path()
     pulled_on = pulled_on or datetime.now(BERLIN).date().isoformat()
     print(f"{'group':<8} {'series':<14} {'as_of':<12} {'value':<12} {'unit':<12} cadence", flush=True)
+    ecb = keep("ECB", fetch_ecb) or {name: ("", "") for _, name, *_rest in ECB}
+    sofr = keep("SOFR", fetch_sofr) or ("", "")
+    worldbank = keep("WORLD_BANK", fetch_worldbank) or {name: ("", "") for _group, name, _label, _unit in WB}
     try:
-        row = daily_row(pulled_on, fetch_ecb(), fetch_sofr(), fetch_worldbank())
+        row = fill_from_previous(daily_row(pulled_on, ecb, sofr, worldbank), previous_data_row(path))
     except Exception as exc:
         print(f"skip     csv            {exc.__class__.__name__}: {exc}"[:160], flush=True)
         print("csv unchanged", flush=True)
