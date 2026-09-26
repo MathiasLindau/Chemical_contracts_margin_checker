@@ -1,8 +1,12 @@
 """Pull the seven free series and append one row to api_price.csv.
 
-The first line is the header. One data row per calendar day. A second
-run on the same day replaces that row. The file is left unchanged when
-any series fails.
+The first line is the header. One data row per calendar day in Berlin.
+A second run on the same day replaces that row. The file is left
+unchanged when any series fails.
+
+GitHub Actions runs this on weekdays around 06:00 Berlin time. A manual
+start always writes. A scheduled start writes only between 06:00 and
+09:00 Berlin on Monday to Friday.
 
     python -m src.margin_checker.market_probe
 """
@@ -12,12 +16,14 @@ from __future__ import annotations
 import csv
 import io
 import json
+import os
 import re
 import sys
-from datetime import date
+from datetime import datetime
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
+from zoneinfo import ZoneInfo
 
 TIMEOUT = 30
 ECB = (
@@ -30,6 +36,7 @@ WB = (
     ("energy", "GAS_EU", "Natural gas, Europe", "USD/mmbtu"),
     ("raw", "MAIZE", "Maize", "USD/t"),
 )
+BERLIN = ZoneInfo("Europe/Berlin")
 HEADER = (
     "pulled_on",
     "eurusd",
@@ -178,9 +185,20 @@ def write_row(path, row):
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
+def berlin_now():
+    return datetime.now(BERLIN)
+
+
+def in_morning_window(now):
+    return now.weekday() < 5 and 6 <= now.hour < 9
+
+
 def probe(path=None, pulled_on=None):
+    if os.environ.get("MARKET_PROBE_SCHEDULED") == "1" and not in_morning_window(berlin_now()):
+        print("outside 06:00 Berlin, csv unchanged", flush=True)
+        return 0
     path = Path(path) if path else output_path()
-    pulled_on = pulled_on or date.today().isoformat()
+    pulled_on = pulled_on or berlin_now().date().isoformat()
     print(f"{'group':<8} {'series':<14} {'as_of':<12} {'value':<12} {'unit':<12} cadence", flush=True)
     try:
         row = daily_row(pulled_on, fetch_ecb(), fetch_sofr(), fetch_worldbank())
