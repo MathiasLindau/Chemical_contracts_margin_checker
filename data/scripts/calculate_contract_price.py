@@ -1,32 +1,8 @@
-"""Price each contract from its own fields, the 2023 index, today's API row, and the road tariff.
-
-The product chooses the raw-material series.
-UNMAPPED products keep raw ratio 1. They do not read a raw API value.
-Gas is read for every product.
-The currency chooses the interest series. GBP and CHF read no rate.
-Logistics is the fixed 500 km trip for every contract.
-
-    python data/scripts/calculate_contract_price.py
-"""
-
-from __future__ import annotations
+print("calculate_contract_price start", flush=True)
 
 import csv
 import sys
 from pathlib import Path
-
-def project_root():
-    starts = [Path.cwd(), Path(__file__).resolve().parent]
-    for start in starts:
-        for folder in [start, *start.parents]:
-            if (folder / "data" / "market").is_dir():
-                return folder
-    raise SystemExit("Start this from the margin-checker folder.")
-
-
-ROOT = project_root()
-MARKET = ROOT / "data" / "market"
-OUT = MARKET / "contract_price.csv"
 
 API_COLUMNS = {
     "EURUSD": "usd_for_one_eur",
@@ -73,6 +49,17 @@ HEADER = (
 )
 
 
+def project_root():
+    starts = [Path.cwd(), Path(__file__).resolve().parent]
+    for start in starts:
+        for folder in [start, *start.parents]:
+            if (folder / "data" / "market").is_dir():
+                return folder
+    print("data/market nicht gefunden", flush=True)
+    print("cwd " + str(Path.cwd()), flush=True)
+    raise SystemExit(1)
+
+
 def read_csv(path):
     with Path(path).open(encoding="utf-8", newline="") as handle:
         return list(csv.DictReader(handle))
@@ -81,7 +68,7 @@ def read_csv(path):
 def latest_api_row(rows):
     data = [row for row in rows if row.get("pulled_on_date", "").startswith("20")]
     if not data:
-        raise RuntimeError("api_price.csv has no data row")
+        raise RuntimeError("api_price.csv hat keine Datenzeile")
     return data[-1]
 
 
@@ -89,14 +76,14 @@ def index_value(index_rows, instrument):
     for row in index_rows:
         if row["instrument"] == instrument:
             return float(row["baseline_value"])
-    raise RuntimeError("missing 2023 index for " + instrument)
+    raise RuntimeError("index_2023.csv hat kein " + instrument)
 
 
 def api_value(api_row, instrument):
     column = API_COLUMNS[instrument]
     value = api_row.get(column, "")
     if str(value).strip() == "":
-        raise RuntimeError("api_price.csv has no " + column)
+        raise RuntimeError("api_price.csv hat kein " + column)
     return float(value)
 
 
@@ -104,7 +91,7 @@ def logistics_price(rows, item):
     for row in rows:
         if row["item"] == item:
             return float(row["price"])
-    raise RuntimeError("logistics_price.csv has no " + item)
+    raise RuntimeError("logistics_price.csv hat kein " + item)
 
 
 def money(value):
@@ -118,7 +105,7 @@ def ratio_text(value):
 def price_one(contract, product_map, index_rows, api_row, trip_eur, demurrage_per_day):
     product = contract["product_name"]
     if product not in product_map:
-        raise RuntimeError("no product map for " + product)
+        raise RuntimeError("product_index hat kein " + product)
     mapped = product_map[product]
     base = float(contract["base_price"])
     energy_adder = float(contract["energy_adder_percentage"])
@@ -223,56 +210,47 @@ def build_rows(contracts, product_rows, index_rows, api_rows, logistics_rows):
     ]
 
 
-def write_prices(path, rows):
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", newline="", encoding="utf-8") as handle:
+def main():
+    root = project_root()
+    market = root / "data" / "market"
+    files = {
+        "contracts": market / "contract_data.csv",
+        "api": market / "api_price.csv",
+        "logistics": market / "logistics_price.csv",
+        "index": market / "index_2023.csv",
+        "product_index": market / "product_index_map.csv",
+    }
+    missing = [str(path) for path in files.values() if not path.exists()]
+    if missing:
+        print("datei fehlt", flush=True)
+        for path in missing:
+            print(path, flush=True)
+        return 1
+    for name, path in files.items():
+        print(name + " " + str(path), flush=True)
+    rows = build_rows(
+        read_csv(files["contracts"]),
+        read_csv(files["product_index"]),
+        read_csv(files["index"]),
+        read_csv(files["api"]),
+        read_csv(files["logistics"]),
+    )
+    out = market / "contract_price.csv"
+    with out.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=HEADER)
         writer.writeheader()
         writer.writerows(rows)
-    return path
-
-
-def contracts_file():
-    candidates = (
-        MARKET / "contract_data.csv",
-        ROOT / "data" / "chemical_contracts.csv",
-        ROOT / "data" / "contracts" / "chemical_contracts.csv",
+    first = rows[0]
+    print("wrote " + str(out), flush=True)
+    print("zeilen " + str(len(rows)), flush=True)
+    print(
+        first["contract_id"]
+        + " "
+        + first["indicative_price_per_ton"]
+        + " "
+        + first["currency"],
+        flush=True,
     )
-    for path in candidates:
-        if path.exists():
-            return path
-    print("missing contract table. Looked for:", flush=True)
-    for path in candidates:
-        print("  " + str(path), flush=True)
-    return None
-
-
-def main():
-    print("calculate_contract_price start", flush=True)
-    contracts = contracts_file()
-    required = [
-        MARKET / "product_index_map.csv",
-        MARKET / "index_2023.csv",
-        MARKET / "api_price.csv",
-        MARKET / "logistics_price.csv",
-    ]
-    missing = [path for path in required if not path.exists()]
-    if contracts is None or missing:
-        for path in missing:
-            print("missing " + str(path), flush=True)
-        return 1
-    print("contracts " + str(contracts), flush=True)
-    rows = build_rows(
-        read_csv(contracts),
-        read_csv(MARKET / "product_index_map.csv"),
-        read_csv(MARKET / "index_2023.csv"),
-        read_csv(MARKET / "api_price.csv"),
-        read_csv(MARKET / "logistics_price.csv"),
-    )
-    path = Path(sys.argv[1]) if len(sys.argv) > 1 else OUT
-    write_prices(path, rows)
-    print(f"wrote {path} rows {len(rows)}", flush=True)
     return 0
 
 
