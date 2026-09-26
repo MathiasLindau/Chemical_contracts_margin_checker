@@ -28,6 +28,9 @@ Typical structured fields include:
 - product
 - chemical
 - base price
+- today's indicative price per ton
+- financing per ton
+- logistics amount
 - currency
 - volume
 - minimum monthly volume

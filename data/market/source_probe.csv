@@ -1,0 +1,4 @@
+instrument,http_status,key_present,note
+BRENT_EIA,403,False,API_KEY_MISSING
+FRED_DCOILBRENTEU,400,False,api_key is not set
+ENERGY_EU,401,False,token missing or rejected

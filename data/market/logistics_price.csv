@@ -1,0 +1,4 @@
+item,price,unit,currency,valid_from,valid_to,what_it_is
+road_bulk_ftl,1.95,EUR per km,EUR,2026-01-01,2027-12-31,"2-year contract, road only, one chemical bulk container per full truck"
+road_bulk_ftl_reference_trip,975.00,EUR per trip of 500 km,EUR,2026-01-01,2027-12-31,"same tariff times 500 km, so one FTL trip has a single euro amount"
+demurrage_bulk_container,150,EUR per container per day,EUR,2026-01-01,2027-12-31,charged for each day after demurrage_days_included in the sales contract

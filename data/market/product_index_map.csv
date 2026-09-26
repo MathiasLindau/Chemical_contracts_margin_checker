@@ -1,0 +1,101 @@
+product_name,energy_instrument,raw_material_instrument,rate_rule,fx_instrument
+Acetone,GAS_EU,BRENT,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Acrylic Acid,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Acrylonitrile Butadiene Styrene,GAS_EU,BRENT,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Adipic Acid,GAS_EU,BRENT,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Aluminium Sulfate,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Ammonium Bicarbonate,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Ammonium Nitrate,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Anhydrous Ammonia,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Aniline,GAS_EU,BRENT,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Argon,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Benzene,GAS_EU,BRENT,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Benzoic Acid,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Bio-Naphtha,GAS_EU,BRENT,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Calcium Chloride,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Calcium Nitrate,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Caprolactam,GAS_EU,BRENT,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Carbon Black N330,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Caustic Soda,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Caustic Soda Flake,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Chlorhexidine,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Chlorine,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Chloroform,GAS_EU,BRENT,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Citric Acid,GAS_EU,MAIZE,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Cobalt Sulfate,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Diethylene Glycol,GAS_EU,BRENT,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Epoxy Hardener,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Epoxy Resins,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Ethanol,GAS_EU,MAIZE,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Ethyl Acetate,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Food-Grade CO2,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Formaldehyde,GAS_EU,BRENT,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Formic Acid,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Gelatin,GAS_EU,MAIZE,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Glacial Acetic Acid,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Glucose Syrup 42DE,GAS_EU,MAIZE,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Glycerin,GAS_EU,MAIZE,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Glycol Ether,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+High Density Polyethylene,GAS_EU,BRENT,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Hydrochloric Acid,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Hydrogen Peroxide,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Hydrogen Peroxide 50%,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Iron Oxide,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Isopropanol,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+LABSA,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Lactic Acid 88%,GAS_EU,MAIZE,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Lead Acetate,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Linear Alkylbenzene,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Liquid Hydrogen,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Liquid Nitrogen,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Lithium Carbonate,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Low Density Polyethylene,GAS_EU,BRENT,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+MTBE,GAS_EU,BRENT,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Maltodextrin,GAS_EU,MAIZE,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Melamine,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Methanol,GAS_EU,BRENT,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Mica Powder,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Mixed Xylenes,GAS_EU,BRENT,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Monoethylene Glycol,GAS_EU,BRENT,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Nickel Sulfate,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Nitric Acid,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Nylon 66,GAS_EU,BRENT,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+PLA Resin,GAS_EU,MAIZE,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+PVA Resin,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+PVC Resin,GAS_EU,BRENT,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Phenol,GAS_EU,BRENT,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Phosphoric Acid,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Polyaluminium Chloride,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Polyethylene,GAS_EU,BRENT,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Polyethylene Terephthalate,GAS_EU,BRENT,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Polypropylene,GAS_EU,BRENT,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Polystyrene,GAS_EU,BRENT,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Polyurethane,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Potassium Chloride,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Potassium Hydroxide,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Reactive Dyes,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+SLES 70%,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Silica Sand,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Silicone Fluid 350,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Sodium Acetate,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Sodium Bicarbonate,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Sodium Carbonate,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Sodium Citrate,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Sodium Fluoride,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Sodium Hydroxide,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Sodium Hypochlorite,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Sodium Lauryl Sulfate,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Sodium Percarbonate,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Sodium Phosphate,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Sodium Sulfate,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Sorbitol 70%,GAS_EU,MAIZE,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Styrene Acrylonitrile,GAS_EU,BRENT,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Styrene Monomer,GAS_EU,BRENT,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Sulfuric Acid,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Titanium Carbonate,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Titanium Dioxide,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Toluene,GAS_EU,BRENT,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Tungsten Trioxide,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Urea,GAS_EU,UNMAPPED,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+Vinyl Acetate Monomer,GAS_EU,BRENT,"SOFR if currency USD, else EURIBOR_3M",EURUSD
+n-Butanol,GAS_EU,BRENT,"SOFR if currency USD, else EURIBOR_3M",EURUSD

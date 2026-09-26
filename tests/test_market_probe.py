@@ -1,0 +1,100 @@
+import tempfile
+import unittest
+from pathlib import Path
+
+from src.margin_checker.market_probe import (
+    HEADER,
+    fill_from_previous,
+    pink_sheet_table,
+    worldbank_workbook_url,
+    write_row,
+)
+
+
+class PinkSheetTableTest(unittest.TestCase):
+
+    def test_finds_header_and_newest_month(self):
+        rows = [
+            ("title", None),
+            (None, None),
+            (None, None),
+            ("Updated on September 02, 2026", None),
+            (None, "Crude oil, Brent", "Maize"),
+            ("2026M07", 80, 200),
+            ("2026M08", 90.9, 224),
+            (None, None, None),
+        ]
+        labels, last, updated = pink_sheet_table(rows)
+        self.assertEqual(labels[1], "Crude oil, Brent")
+        self.assertEqual(last[0], "2026M08")
+        self.assertIn("September", updated)
+
+    def test_missing_header(self):
+        with self.assertRaises(RuntimeError):
+            pink_sheet_table([("no prices",)])
+
+    def test_writes_header_then_one_row_per_day(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "api_price.csv"
+            path.write_text("", encoding="utf-8")
+            write_row(path, ["2026-09-25", "1.1403", "2026-09-25"])
+            write_row(path, ["2026-09-26", "1.1400", "2026-09-25"])
+            lines = path.read_text(encoding="utf-8").splitlines()
+        self.assertEqual(lines[0], ",".join(HEADER))
+        self.assertEqual(lines[1:], [
+            "2026-09-25,1.1403,2026-09-25",
+            "2026-09-26,1.1400,2026-09-25",
+        ])
+
+    def test_second_run_on_the_same_day_replaces_the_row(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "api_price.csv"
+            write_row(path, ["2026-09-26", "1.1403", "2026-09-25"])
+            write_row(path, ["2026-09-26", "1.1410", "2026-09-25"])
+            self.assertEqual(
+                path.read_text(encoding="utf-8").splitlines(),
+                [",".join(HEADER), "2026-09-26,1.1410,2026-09-25"],
+            )
+
+    def test_existing_row_without_header_gets_one_header(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "api_price.csv"
+            path.write_text("2026-09-26,1.1403,2026-09-25\n", encoding="utf-8")
+            write_row(path, ["2026-09-26", "1.1403", "2026-09-25"])
+            self.assertEqual(
+                path.read_text(encoding="utf-8").splitlines(),
+                [",".join(HEADER), "2026-09-26,1.1403,2026-09-25"],
+            )
+
+    def test_worldbank_url_comes_from_the_page_when_present(self):
+        page = b'<a href="https://thedocs.worldbank.org/en/doc/abc/related/CMO-Historical-Data-Monthly.xlsx">Monthly</a>'
+        self.assertTrue(worldbank_workbook_url(page).endswith("CMO-Historical-Data-Monthly.xlsx"))
+
+    def test_worldbank_url_falls_back_when_the_page_has_no_link(self):
+        url = worldbank_workbook_url(b"no workbook here")
+        self.assertTrue(url.endswith("CMO-Historical-Data-Monthly.xlsx"))
+
+    def test_replaces_the_old_header_and_keeps_the_values(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "api_price.csv"
+            path.write_text(
+                "pulled_on,eurusd,eurusd_as_of\n2026-09-25,1.1403,2026-09-25\n",
+                encoding="utf-8",
+            )
+            write_row(path, ["2026-09-26", "1.1410", "2026-09-25"])
+            lines = path.read_text(encoding="utf-8").splitlines()
+        self.assertEqual(lines[0], ",".join(HEADER))
+        self.assertIn("2026-09-25,1.1403,2026-09-25", lines)
+        self.assertEqual(lines[-1], "2026-09-26,1.1410,2026-09-25")
+
+    def test_blank_cell_keeps_the_previous_value(self):
+        previous = ["2026-09-25", "1.1403", "2026-09-25", "2.5", "2026-09-26"]
+        fresh = ["2026-09-26", "", "", "2.5", "2026-09-26"]
+        # Pad to the real header width with values so only the fx pair is blank.
+        previous = previous + ["x"] * (len(HEADER) - len(previous))
+        fresh = fresh + ["x"] * (len(HEADER) - len(fresh))
+        filled = fill_from_previous(fresh, previous)
+        self.assertEqual(filled[0], "2026-09-26")
+        self.assertEqual(filled[1], "1.1403")
+        self.assertEqual(filled[2], "2026-09-25")
+        self.assertTrue(all(str(cell).strip() for cell in filled))

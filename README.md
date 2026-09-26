@@ -270,7 +270,7 @@ After each answer the app can ask the model: “Is this relevant?” That second
 
 ## Limits (honest)
 
-- **Foundation only.** No market API, no live margin yet.
+- **Market pull is separate from the chat.** `python -m src.margin_checker.market_fetch` writes `data/market/prices.csv` from the ECB (daily FX, no key) and the World Bank Pink Sheet (monthly Brent, European gas, maize, no key). Electricity, daily EIA/FRED oil, and container freight are not in that file yet. The Streamlit app does not use these prices yet.
 - **Eval set is 50 questions** on contracts `0001`–`0050`, not on `0051`–`0100`.
 - **Full-catalog retrieval got harder** with 100 contracts (RRF Hit@3 62%; unstructured only 36%). Live **hybrid** still restricts text to CSV IDs (gold-ID Hit@3 100%, hybrid Full Hit@3 87.5%).
 - **Cross-Encoder hurt** full-catalog Hit@3 (38%). Do not treat that as the hybrid-route score. Gold-ID Hit@3 of 100% only means the ID filter worked.
