@@ -213,12 +213,15 @@ def build_rows(contracts, product_rows, index_rows, api_rows, logistics_rows):
 def main():
     root = project_root()
     market = root / "data" / "market"
+    product_index = market / "product_index.csv"
+    if not product_index.exists():
+        product_index = market / "product_index_map.csv"
     files = {
         "contracts": market / "contract_data.csv",
         "api": market / "api_price.csv",
         "logistics": market / "logistics_price.csv",
         "index": market / "index_2023.csv",
-        "product_index": market / "product_index_map.csv",
+        "product_index": product_index,
     }
     missing = [str(path) for path in files.values() if not path.exists()]
     if missing:
