@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from src.margin_checker.market_probe import pink_sheet_table, write_row
+from src.margin_checker.market_probe import HEADER, pink_sheet_table, write_row
 
 
 class PinkSheetTableTest(unittest.TestCase):
@@ -27,14 +27,15 @@ class PinkSheetTableTest(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             pink_sheet_table([("no prices",)])
 
-    def test_appends_one_row_without_a_header(self):
+    def test_writes_header_then_one_row_per_day(self):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "api_price.csv"
             path.write_text("", encoding="utf-8")
             write_row(path, ["2026-09-25", "1.1403", "2026-09-25"])
             write_row(path, ["2026-09-26", "1.1400", "2026-09-25"])
             lines = path.read_text(encoding="utf-8").splitlines()
-        self.assertEqual(lines, [
+        self.assertEqual(lines[0], ",".join(HEADER))
+        self.assertEqual(lines[1:], [
             "2026-09-25,1.1403,2026-09-25",
             "2026-09-26,1.1400,2026-09-25",
         ])
@@ -46,5 +47,15 @@ class PinkSheetTableTest(unittest.TestCase):
             write_row(path, ["2026-09-26", "1.1410", "2026-09-25"])
             self.assertEqual(
                 path.read_text(encoding="utf-8").splitlines(),
-                ["2026-09-26,1.1410,2026-09-25"],
+                [",".join(HEADER), "2026-09-26,1.1410,2026-09-25"],
+            )
+
+    def test_existing_row_without_header_gets_one_header(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "api_price.csv"
+            path.write_text("2026-09-26,1.1403,2026-09-25\n", encoding="utf-8")
+            write_row(path, ["2026-09-26", "1.1403", "2026-09-25"])
+            self.assertEqual(
+                path.read_text(encoding="utf-8").splitlines(),
+                [",".join(HEADER), "2026-09-26,1.1403,2026-09-25"],
             )

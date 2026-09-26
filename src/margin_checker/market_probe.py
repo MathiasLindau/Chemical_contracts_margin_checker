@@ -1,13 +1,8 @@
 """Pull the seven free series and append one row to api_price.csv.
 
-No header. One row per calendar day. A second run on the same day
-replaces that row. The file is left unchanged when any series fails.
-
-Column order:
-
-    pulled_on, eurusd, eurusd_as_of, ecb_deposit, ecb_deposit_as_of,
-    euribor_3m, euribor_3m_as_of, sofr, sofr_as_of, brent, brent_as_of,
-    gas_eu, gas_eu_as_of, maize, maize_as_of
+The first line is the header. One data row per calendar day. A second
+run on the same day replaces that row. The file is left unchanged when
+any series fails.
 
     python -m src.margin_checker.market_probe
 """
@@ -34,6 +29,23 @@ WB = (
     ("raw", "BRENT", "Crude oil, Brent", "USD/bbl"),
     ("energy", "GAS_EU", "Natural gas, Europe", "USD/mmbtu"),
     ("raw", "MAIZE", "Maize", "USD/t"),
+)
+HEADER = (
+    "pulled_on",
+    "eurusd",
+    "eurusd_as_of",
+    "ecb_deposit",
+    "ecb_deposit_as_of",
+    "euribor_3m",
+    "euribor_3m_as_of",
+    "sofr",
+    "sofr_as_of",
+    "brent",
+    "brent_as_of",
+    "gas_eu",
+    "gas_eu_as_of",
+    "maize",
+    "maize_as_of",
 )
 
 
@@ -155,7 +167,10 @@ def write_row(path, row):
     path.parent.mkdir(parents=True, exist_ok=True)
     lines = path.read_text(encoding="utf-8").splitlines() if path.exists() else []
     lines = [line for line in lines if line.strip()]
-    if lines and lines[-1].split(",", 1)[0] == str(row[0]):
+    header = ",".join(HEADER)
+    if not lines or lines[0] != header:
+        lines.insert(0, header)
+    if len(lines) > 1 and lines[-1].split(",", 1)[0] == str(row[0]):
         lines.pop()
     buffer = io.StringIO()
     csv.writer(buffer, lineterminator="\n").writerow(row)
