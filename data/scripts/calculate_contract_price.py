@@ -209,6 +209,34 @@ def price_one(contract, product_map, index_rows, api_row, trip_eur, demurrage_pe
     }
 
 
+def price_day(contracts, product_map, index_rows, api_row, trip_eur, demurrage_per_day):
+    return [
+        price_one(contract, product_map, index_rows, api_row, trip_eur, demurrage_per_day)
+        for contract in contracts
+    ]
+
+
+def build_rows(contracts, product_rows, index_rows, api_rows, logistics_rows):
+    product_map = {row["product_name"]: row for row in product_rows}
+    trip = logistics_price(logistics_rows, "road_bulk_ftl_reference_trip")
+    demurrage = logistics_price(logistics_rows, "demurrage_bulk_container")
+    history = []
+    for api_row in api_days(api_rows):
+        history.extend(price_day(contracts, product_map, index_rows, api_row, trip, demurrage))
+    latest_day = history[-1]["price_date"]
+    latest = [row for row in history if row["price_date"] == latest_day]
+    return latest, history
+
+
+def merge_history(stored, fresh):
+    """Keep every saved day. A day present in this API run replaces that day only."""
+    fresh_days = {row.get("price_date") for row in fresh}
+    kept = [row for row in stored if row.get("price_date") not in fresh_days]
+    combined = kept + list(fresh)
+    combined.sort(key=lambda row: (str(row.get("price_date", "")), str(row.get("contract_id", ""))))
+    return combined
+
+
 def main():
     root = project_root()
     market = root / "data" / "market"
@@ -230,28 +258,20 @@ def main():
         return 1
     for name, path in files.items():
         print(name + " " + str(path), flush=True)
-    contracts = read_csv(files["contracts"])
-    product_map = {row["product_name"]: row for row in read_csv(files["product_index"])}
-    index_rows = read_csv(files["index"])
-    logistics_rows = read_csv(files["logistics"])
-    trip = 0.0
-    demurrage = 0.0
-    for row in logistics_rows:
-        if row["item"] == "road_bulk_ftl_reference_trip":
-            trip = float(row["price"])
-        if row["item"] == "demurrage_bulk_container":
-            demurrage = float(row["price"])
-    history = []
-    for api_row in api_days(read_csv(files["api"])):
-        for contract in contracts:
-            history.append(price_one(contract, product_map, index_rows, api_row, trip, demurrage))
-    latest_day = history[-1]["price_date"]
-    latest = [row for row in history if row["price_date"] == latest_day]
+    latest, fresh_history = build_rows(
+        read_csv(files["contracts"]),
+        read_csv(files["product_index"]),
+        read_csv(files["index"]),
+        read_csv(files["api"]),
+        read_csv(files["logistics"]),
+    )
     out = market / "contract_price.csv"
     history_path = market / "contract_price_history.csv"
+    stored = read_csv(history_path) if history_path.exists() else []
+    history = merge_history(stored, fresh_history)
     for path, table in ((out, latest), (history_path, history)):
         with path.open("w", newline="", encoding="utf-8") as handle:
-            writer = csv.DictWriter(handle, fieldnames=HEADER)
+            writer = csv.DictWriter(handle, fieldnames=HEADER, extrasaction="ignore")
             writer.writeheader()
             writer.writerows(table)
     days = []
@@ -262,7 +282,14 @@ def main():
     print("api tage " + " ".join(days), flush=True)
     print("wrote " + str(out) + " tag " + first["price_date"] + " zeilen " + str(len(latest)), flush=True)
     print("wrote " + str(history_path) + " zeilen " + str(len(history)), flush=True)
-    print(first["contract_id"] + " " + first["indicative_price_per_ton"] + " " + first["currency"], flush=True)
+    print(
+        first["contract_id"]
+        + " "
+        + first["indicative_price_per_ton"]
+        + " "
+        + first["currency"],
+        flush=True,
+    )
     return 0
 
 

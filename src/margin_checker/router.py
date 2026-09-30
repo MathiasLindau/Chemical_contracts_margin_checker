@@ -28,6 +28,15 @@ Typical structured fields include:
 - product
 - chemical
 - base price
+- today's indicative price per ton from the daily price table
+- financing per ton, only when the question asks about financing or the payment term
+- logistics amount, only when the question asks about transport
+- energy and raw-material adder amounts
+- change of today's indicative price versus an earlier day in the price history
+- uplift of today's indicative price versus the contract base price
+- averages and differences over months or years, including a month that is not stored yet
+- raw-material and energy cost versus the January 2023 index, by customer or by maize / Brent
+- EURUSD and the logistics trip by currency
 - currency
 - volume
 - minimum monthly volume
@@ -42,6 +51,12 @@ Examples:
 - Which contract has the highest breach penalty?
 - Which contracts have an energy surcharge above 5%?
 - What is the price of Product X?
+- How did the Ethanol price change compared with the previous day?
+- What is the average price in April versus May?
+- Which customers have a raw-material cost below the January 2023 index?
+- Is there a logistics saving in the EURUSD rate?
+- Where can we save money?
+- today, cost saving
 - Which customer has the largest minimum volume?
 - What is the total penalty exposure?
 

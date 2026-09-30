@@ -12,6 +12,54 @@ from src.margin_checker.retrieval import (
     get_cached_chunks,
     hybrid_text_contract_ids,
 )
+from src.margin_checker.daily_prices import (
+    attach_history_comparison,
+    history_gap_summary,
+    load_price_history,
+    load_structured_frame,
+)
+try:
+    from src.margin_checker.history_price import (
+        looks_open,
+        needs_history,
+        prepare_history_spec,
+        combine_hybrid_answer,
+        render_rows,
+        run_history_query,
+        sort_by_number,
+        spec_from_model_json,
+        threshold_mask,
+    )
+except ImportError:
+    def looks_open(query):
+        return False
+
+    def needs_history(query):
+        return False
+
+    def prepare_history_spec(query, specification):
+        return None
+
+    def combine_hybrid_answer(rendered, clause):
+        clause = str(clause or "").strip()
+        if rendered and clause:
+            return str(rendered) + "\n\n" + clause
+        return rendered or clause or None
+
+    def render_rows(rows, query=""):
+        return None
+
+    def run_history_query(*args, **kwargs):
+        return []
+
+    def sort_by_number(frame, column, ascending):
+        return frame.sort_values(by=column, ascending=ascending, na_position="last")
+
+    def spec_from_model_json(payload, query=""):
+        return None
+
+    def threshold_mask(frame, column, operation, value):
+        return None
 from src.margin_checker.structured import (
     STRUCTURED_ROW_CAP,
     apply_catalog_filters,
@@ -23,9 +71,37 @@ from src.margin_checker.sources import split_primary_secondary
 
 load_dotenv()
 
-client = OpenAI()
+client = OpenAI(timeout=45.0, max_retries=1)
 
-CSV_PATH = "data/chemical_contracts.csv"
+EMPTY_ANSWER = (
+    "The context does not provide specific information on areas where money can be saved. "
+    "Therefore, I cannot identify potential savings."
+)
+
+FACT_KEYS = (
+    "indicative_price_per_ton",
+    "base_price",
+    "period_value",
+    "baseline_value",
+    "change",
+    "raw_gap_per_ton",
+    "raw_gap_at_max_volume",
+    "raw_gap_per_ton_mean",
+    "energy_gap_per_ton_mean",
+    "energy_amount",
+    "raw_amount",
+    "financing_per_ton",
+    "logistics_amount",
+    "average",
+    "sum",
+    "count",
+    "usd_trip_now",
+    "usd_trip_at_index",
+    "price_latest",
+    "price_earlier",
+    "uplift_vs_base",
+)
+
 MODEL = "gpt-4o-mini"
 RRF_CANDIDATES = 10
 RERANK_TOP_K = 3
@@ -36,10 +112,79 @@ RERANK_TOP_K = 3
 # --------------------------------------------------
 
 def calculate_cost(usage):
-    return (
-        usage.prompt_tokens / 1_000_000 * 0.15
-        + usage.completion_tokens / 1_000_000 * 0.60
-    )
+    if usage is None:
+        return 0.0
+    prompt = getattr(usage, "prompt_tokens", 0) or 0
+    completion = getattr(usage, "completion_tokens", 0) or 0
+    return prompt / 1_000_000 * 0.15 + completion / 1_000_000 * 0.60
+
+
+class EmptyUsage:
+    prompt_tokens = 0
+    completion_tokens = 0
+    total_tokens = 0
+
+
+def _empty_usage():
+    return EmptyUsage()
+
+
+def _accumulate(bucket, usage):
+    if usage is None:
+        return
+    bucket["prompt"] += getattr(usage, "prompt_tokens", 0) or 0
+    bucket["completion"] += getattr(usage, "completion_tokens", 0) or 0
+    bucket["cost"] += calculate_cost(usage)
+
+
+def _as_int(value, default):
+    try:
+        if value is None or str(value).strip().lower() in {"", "null", "none"}:
+            return default
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _row_has_fact(row):
+    if not isinstance(row, dict) or row.get("error"):
+        return False
+    if str(row.get("chunk_text") or "").strip():
+        return True
+    for key in FACT_KEYS:
+        value = row.get(key)
+        if value is None or value == "":
+            continue
+        return True
+    return False
+
+
+def _has_context(results):
+    if isinstance(results, dict):
+        rows = list(results.get("structured") or []) + list(results.get("text") or [])
+    elif isinstance(results, list):
+        rows = results
+    else:
+        return False
+    for row in rows:
+        if _row_has_fact(row):
+            return True
+    return False
+
+
+def _safe_text_search(query, documents, contract_ids):
+    try:
+        if not documents:
+            return []
+        found = run_hybrid(
+            query,
+            documents,
+            num_results=RRF_CANDIDATES,
+            contract_ids=contract_ids,
+        )
+        return rerank_results(query, found, top_k=RERANK_TOP_K) or []
+    except Exception:
+        return []
 
 
 # --------------------------------------------------
@@ -47,6 +192,14 @@ def calculate_cost(usage):
 # --------------------------------------------------
 
 def interpret_structured_query(query):
+
+    try:
+        return _interpret_structured_query(query)
+    except Exception:
+        return {}, _empty_usage()
+
+
+def _interpret_structured_query(query):
 
     response = client.chat.completions.create(
         model=MODEL,
@@ -73,6 +226,18 @@ Available fields:
 - customer_name
 - product_name
 - currency
+- indicative_price_per_ton
+- price_date
+- energy_amount
+- raw_amount
+- financing_per_ton
+- logistics_amount
+- price_change
+- uplift_vs_base
+- raw_gap
+- energy_gap
+- raw_gap_at_max_volume
+- eurusd
 
 Allowed operations:
 
@@ -86,13 +251,35 @@ Allowed operations:
 - average
 - sum
 - count
+- compare_periods
+- period_stats
 
 Rules:
 
 - "highest", "most expensive", "largest" → top_n
 - "lowest", "cheapest", "smallest" → bottom_n
-- "highest price" → field = base_price
-- "lowest price" → field = base_price
+- "highest price", "lowest price", "base price", "contract price" → field = base_price, unless the question compares today's price with that base
+- "today's price", "current price", "price per ton", "what is the price" → field = indicative_price_per_ton
+- "price date", "as of", "which day" → field = price_date
+- "versus the base price", "compared with the contract price", "uplift", "gegenüber dem Basispreis" on today's price only → field = uplift_vs_base, compare_to = base
+- A past day, yesterday, last month, a month, a year, an average, or a difference between two times → operation = compare_periods
+- period is the focus, often the later time. baseline_period is the earlier time.
+- "yesterday" / "gestern" → period = latest, baseline_period = yesterday
+- "previous day" → period = latest, baseline_period = previous
+- "last month" / "letzter Monat" → period = this_month, baseline_period = last_month
+- "April vs May" → period = april, baseline_period = may
+- "2025 vs 2024" → period = 2025, baseline_period = 2024
+- "average" / "Durchschnitt" → aggregation = mean
+- "which customer saved" on raw material versus the 2023 index → field = raw_gap, group_by = customer_name, operation = bottom_n
+- If the question also says volume → field = raw_gap_at_max_volume
+- Maize versus Brent versus no raw index → field = raw_gap, group_by = raw_instrument, operation = period_stats
+- EURUSD, exchange rate, or logistics in EUR versus USD → field = eurusd, group_by = currency, baseline_period = index_2023
+- Never use operation "compare". Use compare_periods.
+- A named single date on today's table only, with no month or year comparison → compare_to = that date as YYYY-MM-DD
+- price_change, raw_gap, and uplift_vs_base are ton-price movements, not profit.
+- financing_per_ton only when the question asks about financing, interest, or the cost of the payment term
+- logistics_amount only when the question asks about logistics, transport, freight, or the trip
+- Do not add financing_per_ton or logistics_amount to indicative_price_per_ton
 - "highest adder" → field = overall_adder
 - "lowest adder" → field = overall_adder
 - "overall adder" means:
@@ -121,7 +308,13 @@ Return ONLY valid JSON:
     "value": null,
     "product_name": null,
     "customer_name": null,
-    "currency": null
+    "currency": null,
+    "compare_to": null,
+    "period": null,
+    "baseline_period": null,
+    "aggregation": null,
+    "group_by": null,
+    "raw_instrument": null
 }
 """
             },
@@ -147,9 +340,27 @@ Return ONLY valid JSON:
 
 def find_structured_contracts(query):
 
-    df = pd.read_csv(CSV_PATH)
+    try:
+        return _find_structured_contracts(query)
+    except Exception:
+        return [], _empty_usage()
+
+
+def _find_structured_contracts(query):
+
+    df = load_structured_frame()
 
     specification, usage = interpret_structured_query(query)
+    prepared = prepare_history_spec(query, specification)
+    if prepared is None and looks_open(query):
+        prepared = spec_from_model_json({"operation": "cost_scan"}, query)
+    if prepared is not None:
+        return run_history_query(
+            load_price_history(),
+            prepared,
+            contracts=df,
+            query=query,
+        ), usage
 
     field = specification["field"]
     operation = specification["operation"]
@@ -161,6 +372,15 @@ def find_structured_contracts(query):
     # ----------------------------------------------
     # Create calculated fields
     # ----------------------------------------------
+
+    if field in ("price_change", "uplift_vs_base"):
+        compare_to = "base" if field == "uplift_vs_base" else specification.get("compare_to")
+        working = attach_history_comparison(working, load_price_history(), compare_to)
+        if field == "price_change" and operation != "lookup":
+            gap = history_gap_summary(working)
+            if gap is not None:
+                gap["scope"] = "filtered" if len(working) < len(df) else "all_contracts"
+                return [gap], usage
 
     if field == "overall_adder":
 
@@ -181,10 +401,7 @@ def find_structured_contracts(query):
     # ----------------------------------------------
 
     if sort_field not in working.columns:
-
-        raise ValueError(
-            f"Invalid structured field: {field}"
-        )
+        return [], usage
 
     scoped = len(working) < len(df)
 
@@ -207,9 +424,7 @@ def find_structured_contracts(query):
         if working.empty:
             results = []
         else:
-            result = working.loc[
-                working[sort_field].idxmin()
-            ]
+            result = sort_by_number(working, sort_field, ascending=True).iloc[0]
             results = [
                 result.to_dict()
             ]
@@ -223,9 +438,7 @@ def find_structured_contracts(query):
         if working.empty:
             results = []
         else:
-            result = working.loc[
-                working[sort_field].idxmax()
-            ]
+            result = sort_by_number(working, sort_field, ascending=False).iloc[0]
             results = [
                 result.to_dict()
             ]
@@ -236,13 +449,10 @@ def find_structured_contracts(query):
 
     elif operation == "bottom_n":
 
-        n = int(n or 1)
+        n = _as_int(n, 1)
 
         results = (
-            working.sort_values(
-                by=sort_field,
-                ascending=True
-            )
+            sort_by_number(working, sort_field, ascending=True)
             .head(n)
             .to_dict(orient="records")
         )
@@ -253,13 +463,10 @@ def find_structured_contracts(query):
 
     elif operation == "top_n":
 
-        n = int(n or 1)
+        n = _as_int(n, 1)
 
         results = (
-            working.sort_values(
-                by=sort_field,
-                ascending=False
-            )
+            sort_by_number(working, sort_field, ascending=False)
             .head(n)
             .to_dict(orient="records")
         )
@@ -270,17 +477,20 @@ def find_structured_contracts(query):
 
     elif operation == "filter_above":
 
-        matched = (
-            working[working[sort_field] > value]
-            .sort_values(
-                by=sort_field,
-                ascending=False
+        mask = threshold_mask(working, sort_field, operation, value)
+        if mask is None:
+            results = [{
+                "error": "threshold_not_numeric",
+                "field": field,
+                "value": value,
+                "message": "The comparison value has to be a number.",
+            }]
+        else:
+            matched = sort_by_number(working.loc[mask], sort_field, ascending=False)
+            results = cap_structured_rows(
+                matched.to_dict(orient="records"),
+                match_count=len(matched),
             )
-        )
-        results = cap_structured_rows(
-            matched.to_dict(orient="records"),
-            match_count=len(matched),
-        )
 
     # ----------------------------------------------
     # Filter below
@@ -288,17 +498,20 @@ def find_structured_contracts(query):
 
     elif operation == "filter_below":
 
-        matched = (
-            working[working[sort_field] < value]
-            .sort_values(
-                by=sort_field,
-                ascending=True
+        mask = threshold_mask(working, sort_field, operation, value)
+        if mask is None:
+            results = [{
+                "error": "threshold_not_numeric",
+                "field": field,
+                "value": value,
+                "message": "The comparison value has to be a number.",
+            }]
+        else:
+            matched = sort_by_number(working.loc[mask], sort_field, ascending=True)
+            results = cap_structured_rows(
+                matched.to_dict(orient="records"),
+                match_count=len(matched),
             )
-        )
-        results = cap_structured_rows(
-            matched.to_dict(orient="records"),
-            match_count=len(matched),
-        )
 
     # ----------------------------------------------
     # Average
@@ -306,9 +519,10 @@ def find_structured_contracts(query):
 
     elif operation == "average":
 
+        series = pd.to_numeric(working[sort_field], errors="coerce")
         results = aggregation_row({
             "field": field,
-            "average": float(working[sort_field].mean()) if len(working) else None,
+            "average": float(series.mean()) if series.notna().any() else None,
         })
 
     # ----------------------------------------------
@@ -317,9 +531,10 @@ def find_structured_contracts(query):
 
     elif operation == "sum":
 
+        series = pd.to_numeric(working[sort_field], errors="coerce")
         results = aggregation_row({
             "field": field,
-            "sum": float(working[sort_field].sum()) if len(working) else None,
+            "sum": float(series.sum()) if series.notna().any() else None,
         })
 
     # ----------------------------------------------
@@ -329,7 +544,7 @@ def find_structured_contracts(query):
     elif operation == "count":
 
         results = aggregation_row({
-            "count": int(working[sort_field].count()),
+            "count": int(pd.to_numeric(working[sort_field], errors="coerce").count()),
         })
 
     # ----------------------------------------------
@@ -354,9 +569,11 @@ def find_structured_contracts(query):
 
     else:
 
-        raise ValueError(
-            f"Unsupported structured operation: {operation}"
-        )
+        results = [{
+            "error": "unsupported_operation",
+            "operation": operation,
+            "message": f"Unsupported structured operation: {operation}",
+        }]
 
     # ----------------------------------------------
     # Add explicit ranking
@@ -365,7 +582,8 @@ def find_structured_contracts(query):
     if operation in ["top_n", "bottom_n"]:
 
         for rank, result in enumerate(results, 1):
-            result["_rank"] = rank
+            if isinstance(result, dict):
+                result["_rank"] = rank
 
     return results, usage
 
@@ -374,7 +592,39 @@ def find_structured_contracts(query):
 # Final answer generation
 # --------------------------------------------------
 
+def _structured_rows(results):
+    if isinstance(results, dict):
+        return list(results.get("structured") or [])
+    if isinstance(results, list):
+        return results
+    return []
+
+
 def generate_answer(query, route, results):
+
+    if route != "unstructured":
+        rendered = render_rows(_structured_rows(results), query)
+        text_rows = list(results.get("text") or []) if isinstance(results, dict) else []
+        if rendered and (route == "structured" or not text_rows):
+            return rendered, _empty_usage(), 0.0
+        if route == "structured":
+            return EMPTY_ANSWER, _empty_usage(), 0.0
+
+    if not _has_context(results):
+        return EMPTY_ANSWER, _empty_usage(), 0.0
+
+    try:
+        answer, usage, cost = _generate_answer(query, route, results)
+        if route == "hybrid":
+            rendered = render_rows(_structured_rows(results), query)
+            answer = combine_hybrid_answer(rendered, answer) or answer
+        return answer, usage, cost
+    except Exception:
+        rendered = render_rows(_structured_rows(results), query)
+        return rendered or EMPTY_ANSWER, _empty_usage(), 0.0
+
+
+def _generate_answer(query, route, results):
 
     if route == "structured":
 
@@ -420,13 +670,31 @@ Answer the question based ONLY on the provided context.
 
 Do not invent information.
 
-If the context is insufficient, say so.
+If the context has no usable number and no contract text, answer exactly:
+The context does not provide specific information on areas where money can be saved. Therefore, I cannot identify potential savings.
 
 Be concise and specific.
 Mention contract IDs when relevant.
 
 For structured questions, respect the ranking and values
 provided in the context.
+The ton price is indicative_price_per_ton.
+Mention financing_per_ton only when the question asks about financing or the payment term.
+Mention logistics_amount only when the question asks about transport or logistics.
+Do not add financing or logistics to the ton price.
+price_change is the latest indicative_price_per_ton minus the earlier day in contract_price_history.
+uplift_vs_base is the latest indicative price minus the contract base_price.
+For a history row, period_value and baseline_value are the aggregates for those periods.
+change is period_value minus baseline_value.
+raw_gap_per_ton is the raw-material amount minus the contract percentage at the January 2023 index. Negative means a lower raw-material cost.
+raw_gap_at_max_volume is that per-ton gap times max_monthly_volume_tons.
+EURUSD changes only the USD logistics trip. Do not convert the ton price.
+Prefer these history rows over contract text for prices, adders, and exchange rates.
+A cost scan has sections. price_fell_vs_previous_day and price_rose_vs_previous_day compare today's ton price with the previous stored day.
+raw_material_below_index lists raw-material cost below the January 2023 index.
+Say which section a number comes from.
+All of these are movements of price or cost, not a profit margin.
+If history_note is present, repeat it and do not invent a missing period.
 
 QUESTION:
 {query}
@@ -460,6 +728,17 @@ CONTEXT:
 # --------------------------------------------------
 
 def evaluate_relevance(question, answer, route, sources):
+
+    try:
+        return _evaluate_relevance(question, answer, route, sources)
+    except Exception:
+        return {
+            "relevance": "UNKNOWN",
+            "explanation": "Judge skipped.",
+        }, _empty_usage()
+
+
+def _evaluate_relevance(question, answer, route, sources):
 
     # --------------------------------------------------
     # Prepare sources for evaluation
@@ -602,193 +881,158 @@ def _use_llm_judge(with_judge):
     }
 
 
+def _collect_sources(route, results):
+    if isinstance(results, dict):
+        return list(results.get("text") or []) + list(results.get("structured") or [])
+    if isinstance(results, list):
+        return results
+    return []
+
+
+def _safe_failure():
+    return {
+        "answer": EMPTY_ANSWER,
+        "sources": [],
+        "primary_sources": [],
+        "secondary_sources": [],
+        "route": "structured",
+        "response_time": 0.0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "total_tokens": 0,
+        "cost": 0.0,
+        "relevance": "UNKNOWN",
+        "relevance_explanation": "Query failed safely.",
+    }
+
+
 def rag(query, with_judge=None):
+    try:
+        return _run_rag(query, with_judge)
+    except Exception:
+        return _safe_failure()
+
+
+def _run_rag(query, with_judge=None):
 
     start = time.perf_counter()
-
-    total_prompt_tokens = 0
-    total_completion_tokens = 0
-    total_tokens = 0
-    total_cost = 0.0
-
-    # --------------------------------------------------
-    # 1. Query routing
-    # --------------------------------------------------
-
-    route, usage = classify_query(query)
-
-    total_prompt_tokens += usage.prompt_tokens
-    total_completion_tokens += usage.completion_tokens
-    total_tokens += usage.total_tokens
-    total_cost += calculate_cost(usage)
+    bucket = {"prompt": 0, "completion": 0, "cost": 0.0}
+    route = "structured"
+    results = []
+    answer = EMPTY_ANSWER
+    evaluation = {
+        "relevance": "UNKNOWN",
+        "explanation": "",
+    }
 
     # --------------------------------------------------
-    # 2. Retrieval
+    # 1. Query routing. A failed route still continues.
     # --------------------------------------------------
 
-    if route == "structured":
+    try:
+        route, usage = classify_query(query)
+        _accumulate(bucket, usage)
+    except Exception:
+        route = "structured"
 
-        results, usage = find_structured_contracts(query)
+    try:
+        if route != "structured" and needs_history(query):
+            route = "structured"
+    except Exception:
+        pass
 
-        total_prompt_tokens += usage.prompt_tokens
-        total_completion_tokens += usage.completion_tokens
-        total_tokens += usage.total_tokens
-        total_cost += calculate_cost(usage)
+    # --------------------------------------------------
+    # 2. Retrieval. An empty stage does not stop the next one.
+    # --------------------------------------------------
 
-    else:
-
-        documents = get_cached_chunks()
-
-        # --------------------------------------------------
-        # Unstructured
-        # BM25 + Vector + RRF → Cross-Encoder top 3
-        # --------------------------------------------------
-
-        if route == "unstructured":
-
-            results = run_hybrid(
-                query,
-                documents,
-                num_results=RRF_CANDIDATES
-            )
-            results = rerank_results(
-                query,
-                results,
-                top_k=RERANK_TOP_K
-            )
-
-        # --------------------------------------------------
-        # Hybrid
-        # CSV first, then BM25 + Vector + RRF only on those
-        # contract IDs (e.g. CON-2023-0007, or two IDs if
-        # the question compared two deals).
-        # --------------------------------------------------
-
+    try:
+        if route == "structured":
+            results, usage = find_structured_contracts(query)
+            _accumulate(bucket, usage)
         else:
+            try:
+                documents = get_cached_chunks()
+            except Exception:
+                documents = []
 
-            structured_results, usage = (
-                find_structured_contracts(query)
-            )
-
-            total_prompt_tokens += usage.prompt_tokens
-            total_completion_tokens += usage.completion_tokens
-            total_tokens += usage.total_tokens
-            total_cost += calculate_cost(usage)
-
-            restrict_ids = hybrid_text_contract_ids(
-                structured_results,
-                query=query,
-                catalog=pd.read_csv(CSV_PATH),
-            )
-
-            if restrict_ids:
-                text_results = run_hybrid(
-                    query,
-                    documents,
-                    num_results=RRF_CANDIDATES,
-                    contract_ids=restrict_ids,
-                )
-                text_results = rerank_results(
-                    query,
-                    text_results,
-                    top_k=RERANK_TOP_K
-                )
+            if route == "unstructured":
+                results = _safe_text_search(query, documents, None)
             else:
+                try:
+                    structured_results, usage = find_structured_contracts(query)
+                    _accumulate(bucket, usage)
+                except Exception:
+                    structured_results = []
                 text_results = []
+                if documents and structured_results:
+                    try:
+                        restrict_ids = hybrid_text_contract_ids(
+                            structured_results,
+                            query=query,
+                            catalog=load_structured_frame(),
+                        )
+                    except Exception:
+                        restrict_ids = []
+                    if restrict_ids:
+                        text_results = _safe_text_search(query, documents, restrict_ids)
+                results = {
+                    "structured": structured_results or [],
+                    "text": text_results or [],
+                }
+    except Exception:
+        results = []
 
-            results = {
-                "structured": structured_results,
-                "text": text_results
+    # --------------------------------------------------
+    # 3. Answer. No usable rows means the standard sentence.
+    # --------------------------------------------------
+
+    if _has_context(results):
+        try:
+            answer, usage, _cost = generate_answer(query, route, results)
+            _accumulate(bucket, usage)
+            if not str(answer or "").strip():
+                answer = EMPTY_ANSWER
+        except Exception:
+            answer = EMPTY_ANSWER
+    else:
+        answer = EMPTY_ANSWER
+
+    # --------------------------------------------------
+    # 4. Judge. A failed judge keeps the answer.
+    # --------------------------------------------------
+
+    judge_sources = _collect_sources(route, results)
+    if _has_context(results) and _use_llm_judge(with_judge):
+        try:
+            evaluation, eval_usage = evaluate_relevance(
+                query,
+                answer,
+                route,
+                judge_sources,
+            )
+            _accumulate(bucket, eval_usage)
+        except Exception:
+            evaluation = {
+                "relevance": "UNKNOWN",
+                "explanation": "Judge skipped.",
             }
-
-    # --------------------------------------------------
-    # 3. Generate final answer
-    # --------------------------------------------------
-
-    answer, usage, cost = generate_answer(
-        query,
-        route,
-        results
-    )
-
-    total_prompt_tokens += usage.prompt_tokens
-    total_completion_tokens += usage.completion_tokens
-    total_tokens += usage.total_tokens
-    total_cost += cost
-
-    # --------------------------------------------------
-    # 4. LLM Judge (on by default; RAG_LLM_JUDGE=0 to skip)
-    # --------------------------------------------------
-
-    if route == "structured":
-
-        judge_sources = results
-
-    elif route == "unstructured":
-
-        judge_sources = results
-
-    else:
-
-        judge_sources = (
-            results["text"]
-            + results["structured"]
-        )
-
-    if _use_llm_judge(with_judge):
-
-        evaluation, eval_usage = evaluate_relevance(
-            query,
-            answer,
-            route,
-            judge_sources
-        )
-
-        total_prompt_tokens += eval_usage.prompt_tokens
-        total_completion_tokens += eval_usage.completion_tokens
-        total_tokens += eval_usage.total_tokens
-        total_cost += calculate_cost(eval_usage)
-
-    else:
-
+    elif not _use_llm_judge(with_judge):
         evaluation = {
             "relevance": "NOT_EVALUATED",
             "explanation": "LLM judge skipped (RAG_LLM_JUDGE=0).",
         }
 
     # --------------------------------------------------
-    # 5. Response time
+    # 5. Sources
     # --------------------------------------------------
 
-    response_time = time.perf_counter() - start
-
-    # --------------------------------------------------
-    # 6. Sources
-    # --------------------------------------------------
-
-    if route == "structured":
-
-        sources = results
-
-    elif route == "unstructured":
-
-        sources = results
-
-    else:
-
-        sources = (
-            results["text"]
-            + results["structured"]
+    try:
+        primary_sources, secondary_sources = split_primary_secondary(
+            answer,
+            judge_sources,
         )
-
-    primary_sources, secondary_sources = split_primary_secondary(
-        answer,
-        sources
-    )
-
-    # --------------------------------------------------
-    # 7. Return
-    # --------------------------------------------------
+    except Exception:
+        primary_sources, secondary_sources = [], []
 
     return {
         "answer": answer,
@@ -796,22 +1040,11 @@ def rag(query, with_judge=None):
         "primary_sources": primary_sources,
         "secondary_sources": secondary_sources,
         "route": route,
-
-        "response_time": response_time,
-
-        "prompt_tokens": total_prompt_tokens,
-        "completion_tokens": total_completion_tokens,
-        "total_tokens": total_tokens,
-
-        "cost": total_cost,
-
-        "relevance": evaluation.get(
-            "relevance",
-            "UNKNOWN"
-        ),
-
-        "relevance_explanation": evaluation.get(
-            "explanation",
-            ""
-        )
+        "response_time": time.perf_counter() - start,
+        "prompt_tokens": bucket["prompt"],
+        "completion_tokens": bucket["completion"],
+        "total_tokens": bucket["prompt"] + bucket["completion"],
+        "cost": bucket["cost"],
+        "relevance": evaluation.get("relevance", "UNKNOWN"),
+        "relevance_explanation": evaluation.get("explanation", ""),
     }

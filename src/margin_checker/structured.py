@@ -1,7 +1,5 @@
 # src/margin_checker/structured.py
 
-from src.margin_checker.retrieval import match_named_contracts
-
 STRUCTURED_ROW_CAP = 8
 
 
@@ -30,6 +28,8 @@ def apply_catalog_filters(df, specification, query):
         ]
 
     if len(filtered) == len(df):
+        from src.margin_checker.retrieval import match_named_contracts
+
         named = match_named_contracts(query, df)
         if named:
             allowed = {item.upper() for item in named}

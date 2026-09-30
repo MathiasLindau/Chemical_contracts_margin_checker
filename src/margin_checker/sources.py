@@ -19,6 +19,31 @@ def source_key(source):
     return ("structured", contract_id, "")
 
 
+RERANK_TABLE_NOTE = (
+    "Cross-encoder rerank applies to contract-text search. "
+    "This answer came from the price table."
+)
+
+
+def source_label(source, index):
+    """Expander title. RRF and reranker scores appear only when a text chunk has them."""
+    source = source or {}
+    contract_id = source.get("contract_id")
+    if "score" in source and contract_id:
+        parts = [f"RRF: {float(source['score']):.5f}"]
+        reranker_score = source.get("reranker_score")
+        if reranker_score is not None:
+            parts.append(f"Reranker: {float(reranker_score):.4f}")
+        return f"{contract_id} ({', '.join(parts)})"
+    if contract_id:
+        return f"{contract_id} (structured)"
+    return f"Structured Result {index}"
+
+
+def rerank_applies_to_chunks(sources):
+    return any(isinstance(source, dict) and "chunk_text" in source for source in (sources or []))
+
+
 def cited_contract_ids(answer):
     seen = []
     found = set()

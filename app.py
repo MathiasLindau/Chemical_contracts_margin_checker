@@ -3,6 +3,12 @@
 import streamlit as st
 
 from src.margin_checker.rag import rag
+from src.margin_checker.history_price import split_rendered_answer
+from src.margin_checker.sources import (
+    RERANK_TABLE_NOTE,
+    rerank_applies_to_chunks,
+    source_label,
+)
 from src.margin_checker.db import (
     HISTORY_LIMIT,
     init_monitoring_table,
@@ -51,6 +57,15 @@ st.write(
 )
 
 
+def show_answer(answer):
+    """Render a structured HTML table. Clause text stays markdown."""
+    html_block, prose = split_rendered_answer(answer)
+    if html_block:
+        st.markdown(html_block, unsafe_allow_html=True)
+    if prose:
+        st.write(prose)
+
+
 # --------------------------------------------------
 # History
 # --------------------------------------------------
@@ -89,7 +104,7 @@ if history:
                     st.rerun()
 
             with st.expander("View answer"):
-                st.write(old_answer)
+                show_answer(old_answer)
 
             st.divider()
 
@@ -146,10 +161,26 @@ if st.button("Analyze", type="primary"):
             # Reset feedback for the new answer
             st.session_state.feedback = None
 
-        except Exception as e:
-
-            st.error(f"An error occurred: {e}")
-            st.stop()
+        except Exception:
+            st.session_state.result = {
+                "answer": (
+                    "The context does not provide specific information on areas where money can be saved. "
+                    "Therefore, I cannot identify potential savings."
+                ),
+                "sources": [],
+                "primary_sources": [],
+                "secondary_sources": [],
+                "route": "structured",
+                "response_time": 0.0,
+                "prompt_tokens": 0,
+                "completion_tokens": 0,
+                "total_tokens": 0,
+                "cost": 0.0,
+                "relevance": "UNKNOWN",
+                "relevance_explanation": "Query failed safely.",
+            }
+            st.session_state.log_id = None
+            st.session_state.feedback = None
 
 
 # --------------------------------------------------
@@ -167,7 +198,7 @@ if result is not None:
 
     st.subheader("Answer")
 
-    st.write(result["answer"])
+    show_answer(result["answer"])
 
 
     # --------------------------------------------------
@@ -214,24 +245,6 @@ if result is not None:
     # Sources
     # --------------------------------------------------
 
-    def source_label(source, index):
-
-        contract_id = source.get("contract_id")
-
-        if "score" in source and contract_id:
-
-            parts = [f"RRF: {source['score']:.5f}"]
-            reranker_score = source.get("reranker_score")
-            if reranker_score is not None:
-                parts.append(f"Reranker: {reranker_score:.4f}")
-
-            return f"{contract_id} ({', '.join(parts)})"
-
-        if contract_id:
-            return f"{contract_id} (structured)"
-
-        return f"Structured Result {index}"
-
     def render_sources(title, sources):
 
         if not sources:
@@ -250,6 +263,13 @@ if result is not None:
 
     primary = result.get("primary_sources")
     secondary = result.get("secondary_sources")
+    if primary is None and secondary is None:
+        listed = list(result.get("sources") or [])
+    else:
+        listed = list(primary or []) + list(secondary or [])
+
+    if result.get("route") == "structured" and not rerank_applies_to_chunks(listed):
+        st.caption(RERANK_TABLE_NOTE)
 
     if primary is None and secondary is None:
         render_sources("Sources", result["sources"])
